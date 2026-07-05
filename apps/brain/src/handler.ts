@@ -52,6 +52,9 @@ export interface BrainQueryRequest {
    * defaults if absent or resolution fails.
    */
   target?: string;
+  /** Skip ENS/local-target lookup when the caller already resolved storage (e.g. web catalog). */
+  storageRoot?: string;
+  specialty?: string;
 }
 
 export interface BrainQueryResult {
@@ -125,7 +128,12 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
       let resolvedEns = opts.ensName;
       let resolvedRoot = opts.storageRoot;
       let resolvedSpecialty = opts.specialty;
-      if (req.target && req.target !== opts.ensName) {
+
+      if (req.storageRoot) {
+        resolvedRoot = req.storageRoot;
+        resolvedSpecialty = req.specialty ?? opts.specialty;
+        resolvedEns = req.target ?? opts.ensName;
+      } else if (req.target && req.target !== opts.ensName) {
         const local =
           resolveLocalTarget(req.target) ?? (await resolveLocalTargetAsync(req.target));
         if (local) {

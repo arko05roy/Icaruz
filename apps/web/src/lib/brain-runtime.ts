@@ -3,6 +3,7 @@ import {
   type BrainQueryRequest,
   type BrainQueryResult,
 } from '@brainpedia/brain';
+import { getCreatorBrain } from './brain-store';
 
 let handler: ReturnType<typeof createBrainHandler> | null = null;
 
@@ -48,7 +49,22 @@ export async function queryBrainLocal(req: BrainQueryRequest): Promise<BrainQuer
       'brain runtime not configured — set ZG_WALLET_PRIVATE_KEY, BRAIN_ENS_NAME, BRAIN_STORAGE_ROOT, BRAIN_SPECIALTY',
     );
   }
-  return getHandler().query(req);
+
+  // ponytail: resolve creator brains from the same brains.json /create writes —
+  // never depend on a stale @brainpedia/brain dist for newly published targets.
+  let query = req;
+  if (req.target && !req.storageRoot) {
+    const creator = await getCreatorBrain(req.target);
+    if (creator?.storageRoot) {
+      query = {
+        ...req,
+        storageRoot: creator.storageRoot,
+        specialty: creator.specialty,
+      };
+    }
+  }
+
+  return getHandler().query(query);
 }
 
 export type { BrainQueryRequest, BrainQueryResult };
