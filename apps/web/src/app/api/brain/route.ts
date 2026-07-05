@@ -3,16 +3,25 @@
  * POST { prompt, target }
  */
 import { NextResponse } from 'next/server';
+import {
+  BTL_DEMO_ACCESS_TOKEN,
+  BTL_DEMO_AGENT,
+  isBrainRuntimeConfigured,
+  queryBrainLocal,
+} from '@/lib/brain-runtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const TIMEOUT_MS = 90_000;
-
 export async function POST(req: Request) {
-  const brainUrl = process.env.BRAINPEDIA_BRAIN_URL;
-  if (!brainUrl) {
-    return NextResponse.json({ error: 'BRAINPEDIA_BRAIN_URL not configured' }, { status: 503 });
+  if (!isBrainRuntimeConfigured()) {
+    return NextResponse.json(
+      {
+        error:
+          'brain runtime not configured — set ZG_WALLET_PRIVATE_KEY, BRAIN_ENS_NAME, BRAIN_STORAGE_ROOT, BRAIN_SPECIALTY',
+      },
+      { status: 503 },
+    );
   }
 
   let body: { prompt?: string; target?: string };
@@ -28,52 +37,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'prompt and target required' }, { status: 400 });
   }
 
-  const endpoint = brainUrl.replace(/\/+$/, '') + '/mcp';
-  let upstream: Response;
   try {
-    upstream = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'query',
-        params: {
-          prompt,
-          target,
-          accessToken: 'btl-hackathon',
-          agent: '0x0000000000000000000000000000000000000001',
-        },
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    const result = await queryBrainLocal({
+      prompt,
+      target,
+      accessToken: BTL_DEMO_ACCESS_TOKEN,
+      agent: BTL_DEMO_AGENT,
     });
+    return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json(
-      { error: `brain unreachable: ${(err as Error).message}` },
-      { status: 502 },
-    );
+    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
   }
-
-  const payload = (await upstream.json()) as {
-    result?: Record<string, unknown>;
-    error?: { message: string };
-  };
-
-  if (payload.error) {
-    return NextResponse.json({ error: payload.error.message }, { status: 502 });
-  }
-  if (!payload.result) {
-    return NextResponse.json({ error: 'empty brain response' }, { status: 502 });
-  }
-
-  return NextResponse.json({
-    ...payload.result,
-    btlHeaders: {
-      requestId: upstream.headers.get('x-btl-request-id'),
-      cacheTier: upstream.headers.get('x-btl-cache-tier'),
-      benchmarkCost: upstream.headers.get('x-btl-benchmark-cost'),
-      customerCharge: upstream.headers.get('x-btl-customer-charge'),
-      saved: upstream.headers.get('x-btl-saved'),
-    },
-  });
 }

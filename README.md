@@ -35,11 +35,12 @@ flowchart TB
     end
 
     subgraph Icaruz["Icaruz (this repo)"]
-        WEB["apps/web<br/>Next.js"]
+        WEB["apps/web<br/>Next.js UI + API"]
         MIX["POST /api/mixture"]
+        MCP["POST /api/mcp"]
         REG["brain-registry"]
         BTL_PKG["@brainpedia/compute-btl"]
-        BRAIN_SVC["apps/brain<br/>:7100"]
+        HANDLER["@brainpedia/brain<br/>in-process handler"]
     end
 
     subgraph BTL["BTL Runtime"]
@@ -52,8 +53,9 @@ flowchart TB
     MIX --> REG
     MIX -->|"topic routing"| BTL_PKG
     BTL_PKG --> GW
-    MIX -->|"fan-out N brains"| BRAIN_SVC
-    BRAIN_SVC -->|"per-brain inference"| BTL_PKG
+    MIX -->|"fan-out N brains"| HANDLER
+    MCP --> HANDLER
+    HANDLER -->|"per-brain inference"| BTL_PKG
   GW --> CACHE
     MIX -->|"synthesis"| BTL_PKG
 ```
@@ -173,7 +175,7 @@ Topic routing (`topic: "auto"`) uses `BTL_ROUTER_MODEL` to pick the best catalog
 
 ## Quick start
 
-**Requirements:** [Bun](https://bun.sh), a [BTL workspace key](https://runtime.badtheorylabs.com/), two terminals.
+**Requirements:** [Bun](https://bun.sh), a [BTL workspace key](https://runtime.badtheorylabs.com/), one terminal.
 
 ```bash
 git clone https://github.com/arko05roy/Icaruz.git
@@ -182,15 +184,10 @@ bun install
 
 cp .env.example .env
 # Set GATEWAY_API_KEY=gw_...
+# Set ZG_WALLET_PRIVATE_KEY, BRAIN_ENS_NAME, BRAIN_STORAGE_ROOT, BRAIN_SPECIALTY
 ```
 
-**Terminal 1 — brain service** (wiki retrieval + per-brain BTL inference):
-
-```bash
-bun run dev --filter=@brainpedia/brain
-```
-
-**Terminal 2 — web app** (UI + mixture API):
+**Web app** (UI + mixture API + in-process brain handler):
 
 ```bash
 bun run dev --filter=@brainpedia/web
@@ -204,16 +201,18 @@ Health check: http://localhost:3000/status
 
 ## Environment
 
-Minimum for the BTL demo (root `.env`, loaded by both apps):
+Minimum for the BTL demo (root `.env`, loaded by the web app):
 
 ```bash
 GATEWAY_API_KEY=gw_your_btl_workspace_key
 BTL_RUNTIME_BASE_URL=https://api.badtheorylabs.com/v1
 BTL_QUERY_MODEL=btl-2
 BTL_ROUTER_MODEL=btl-2
-BRAINPEDIA_BRAIN_URL=http://127.0.0.1:7100
-BRAIN_ENFORCE_ACCESS_TOKENS=false
+ZG_WALLET_PRIVATE_KEY=0x...
+BRAIN_ENS_NAME=yudhi.bpedia.eth
 BRAIN_STORAGE_ROOT=0x...          # optional; offline demo articles used if 0G fetch fails
+BRAIN_SPECIALTY=EVM security, audit methodology, incident post-mortems
+BRAIN_ENFORCE_ACCESS_TOKENS=false
 ```
 
 Full template: [`.env.example`](.env.example)
@@ -254,8 +253,8 @@ curl -X POST http://localhost:3000/api/brain \
 ```
 Icaruz/
 ├── apps/
-│   ├── web/                 Next.js UI + /api/mixture + /api/brain
-│   ├── brain/               Multi-tenant brain HTTP service (:7100)
+│   ├── web/                 Next.js UI + /api/mixture + /api/brain + /api/mcp
+│   ├── brain/               Standalone brain HTTP server (legacy; optional for AXL mesh)
 │   └── mcp-server/          Claude MCP tools (legacy write path)
 ├── packages/
 │   ├── compute-btl/         BTL Runtime client, economics, router  ← hackathon core
@@ -273,9 +272,9 @@ Icaruz/
 | Layer | Choice |
 |---|---|
 | Monorepo | Bun workspaces + Turborepo |
-| Web | Next.js 15, Tailwind |
+| Web | Next.js 15, Tailwind, Route Handlers (API backend) |
 | Inference | [BTL Runtime](https://runtime.badtheorylabs.com/docs) (`btl-2`) |
-| Brain transport | JSON-RPC over HTTP (`POST /mcp`) |
+| Brain transport | In-process handler + JSON-RPC at `/api/mcp` |
 
 ---
 

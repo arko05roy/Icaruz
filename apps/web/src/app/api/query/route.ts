@@ -23,6 +23,10 @@ import {
   SESSION_TTL_MS,
 } from './sessions';
 import { verifySettlement } from './verify-settlement';
+import {
+  isBrainRuntimeConfigured,
+  queryBrainLocal,
+} from '@/lib/brain-runtime';
 
 /**
  * Discovery shortcuts the orchestrator can route to. The web service ships
@@ -124,11 +128,11 @@ interface MixtureResponse {
   prompt: string;
   /**
    * Underlying transport for each brain call: 'axl' if we routed through the
-   * AXL daemon's HTTP API at AXL_API_URL, otherwise 'https' (direct to
-   * BRAINPEDIA_BRAIN_URL — the convenience path when the web service isn't
-   * co-located with an AXL daemon).
+   * AXL daemon's HTTP API at AXL_API_URL, 'local' when the brain handler runs
+   * in-process inside Next.js (default), or 'https' when falling back to a
+   * legacy external BRAINPEDIA_BRAIN_URL.
    */
-  transport: 'axl' | 'https';
+  transport: 'axl' | 'local' | 'https';
   brains: MixtureBrainResult[];
   synthesis: string;
   /**
@@ -209,7 +213,16 @@ export async function POST(req: NextRequest) {
   const transport = transportPreference();
   if (transport === 'https' && !process.env.BRAINPEDIA_BRAIN_URL) {
     return NextResponse.json(
-      { error: 'either AXL_API_URL or BRAINPEDIA_BRAIN_URL must be configured' },
+      { error: 'BRAINPEDIA_BRAIN_URL must be configured for https transport' },
+      { status: 503 },
+    );
+  }
+  if (transport === 'local' && !isBrainRuntimeConfigured()) {
+    return NextResponse.json(
+      {
+        error:
+          'brain runtime not configured — set ZG_WALLET_PRIVATE_KEY, BRAIN_ENS_NAME, BRAIN_STORAGE_ROOT, BRAIN_SPECIALTY',
+      },
       { status: 503 },
     );
   }
@@ -222,14 +235,17 @@ export async function POST(req: NextRequest) {
   return singleBrainQuery(prompt, body, transport);
 }
 
-function transportPreference(): 'axl' | 'https' {
-  return process.env.AXL_API_URL ? 'axl' : 'https';
+function transportPreference(): 'axl' | 'local' | 'https' {
+  if (process.env.AXL_API_URL) return 'axl';
+  if (isBrainRuntimeConfigured()) return 'local';
+  if (process.env.BRAINPEDIA_BRAIN_URL) return 'https';
+  return 'local';
 }
 
 async function singleBrainQuery(
   prompt: string,
   body: { accessToken?: string; agent?: string; target?: string },
-  transport: 'axl' | 'https',
+  transport: 'axl' | 'local' | 'https',
 ): Promise<NextResponse> {
   const result = await callBrain(prompt, {
     target: body.target,
@@ -249,7 +265,7 @@ async function singleBrainQuery(
 async function mixtureFanOut(
   prompt: string,
   rawTopic: string,
-  transport: 'axl' | 'https',
+  transport: 'axl' | 'local' | 'https',
 ): Promise<NextResponse> {
   // Resolve topic. `auto` (or empty) → call the LLM router to pick from the
   // discovery registry. Anything else is taken at face value.
@@ -463,7 +479,7 @@ async function callBrain(
     target?: string;
     accessToken?: string;
     agent?: string;
-    transport: 'axl' | 'https';
+    transport: 'axl' | 'local' | 'https';
   },
 ): Promise<BrainCall> {
   const rpcBody = {
@@ -481,7 +497,29 @@ async function callBrain(
   if (params.transport === 'axl') {
     return callBrainViaAxl(rpcBody, params.target);
   }
+  if (params.transport === 'local') {
+    return callBrainLocal(rpcBody.params);
+  }
   return callBrainViaHttps(rpcBody);
+}
+
+async function callBrainLocal(params: {
+  prompt: string;
+  target?: string;
+  accessToken?: string;
+  agent?: string;
+}): Promise<BrainCall> {
+  try {
+    const result = await queryBrainLocal({
+      prompt: params.prompt,
+      target: params.target,
+      accessToken: params.accessToken,
+      agent: params.agent as `0x${string}` | undefined,
+    });
+    return { ok: true, value: result };
+  } catch (err) {
+    return { ok: false, errorMessage: (err as Error).message };
+  }
 }
 
 async function callBrainViaAxl(

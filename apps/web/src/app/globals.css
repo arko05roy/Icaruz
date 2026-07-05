@@ -2,85 +2,165 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * BTL Ledger Terminal — industrial utilitarian, NOT serif/elegant SaaS.
- * Subject: inference economics, cache tiers, per-request proof.
- * Signature: thermal receipt strips + phosphor savings readouts.
- */
-:root {
-  color-scheme: dark;
+@layer base {
+  :root {
+    --background: 43 23% 93%;
+    --foreground: 0 0% 4%;
+    --card: 43 23% 93%;
+    --card-foreground: 0 0% 4%;
+    --popover: 43 23% 93%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 0 0% 4%;
+    --primary-foreground: 43 23% 93%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 4%;
+    --muted: 40 10% 85%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 20 90% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 75%;
+    --input: 0 0% 75%;
+    --ring: 0 0% 4%;
+    --radius: 0rem;
 
-  --void: #090b0f;
-  --panel: #12161f;
-  --panel-raised: #1a2030;
-  --ridge: #2a3347;
-  --ridge-bright: #3d4d66;
+    color-scheme: light;
 
-  --paper: #d4cbb8;
-  --ink: #e8edf4;
-  --ink-dim: #8b9bb3;
-  --ink-ghost: #5c6b82;
+    /* legacy app tokens → brutalist light palette */
+    --void: hsl(43 23% 93%);
+    --panel: hsl(43 20% 90%);
+    --panel-raised: hsl(43 18% 86%);
+    --ridge: hsl(0 0% 75%);
+    --ridge-bright: hsl(0 0% 55%);
+    --ink: hsl(0 0% 4%);
+    --ink-dim: hsl(0 0% 40%);
+    --ink-ghost: hsl(0 0% 50%);
+    --signal: #ea580c;
+    --mint: #ea580c;
+    --hot: hsl(0 72% 45%);
+    --ice: hsl(0 0% 25%);
+  }
 
-  --signal: #ff9f1c;
-  --mint: #3dffa8;
-  --hot: #ff5c4d;
-  --ice: #6ec8ff;
+  .dark {
+    --background: 0 0% 6%;
+    --foreground: 43 23% 93%;
+    --card: 0 0% 8%;
+    --card-foreground: 43 23% 93%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 43 23% 93%;
+    --primary: 43 23% 93%;
+    --primary-foreground: 0 0% 6%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 43 23% 93%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 20 90% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 43 23% 93%;
 
-  --scanline: rgba(61, 255, 168, 0.04);
+    color-scheme: dark;
 
-  /* legacy aliases */
-  --canvas: var(--void);
-  --surface-1: var(--panel);
-  --surface-2: var(--panel-raised);
-  --hairline: var(--ridge);
-  --hairline-strong: var(--ridge-bright);
-  --ink-muted: var(--ink-dim);
-  --ink-subtle: var(--ink-ghost);
-  --accent: var(--signal);
-  --accent-hover: #ffb84d;
-  --on-accent: var(--void);
-  --success: var(--mint);
-  --bg: var(--void);
-  --fg: var(--ink);
-  --muted: var(--ink-dim);
+    --void: hsl(0 0% 6%);
+    --panel: hsl(0 0% 9%);
+    --panel-raised: hsl(0 0% 12%);
+    --ridge: hsl(0 0% 25%);
+    --ridge-bright: hsl(0 0% 38%);
+    --ink: hsl(43 23% 93%);
+    --ink-dim: hsl(0 0% 60%);
+    --ink-ghost: hsl(0 0% 45%);
+    --signal: #ea580c;
+    --mint: #fb923c;
+    --hot: hsl(0 84% 60%);
+    --ice: hsl(200 80% 70%);
+  }
 }
 
-html,
-body {
-  background: var(--void);
-  color: var(--ink);
-  font-family: var(--font-body), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    @apply bg-background text-foreground font-mono antialiased;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 }
 
-body::before {
-  content: '';
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    var(--scanline) 2px,
-    var(--scanline) 4px
-  );
-  opacity: 0.55;
+.dot-grid-bg {
+  background-color: hsl(var(--background));
+  background-image: radial-gradient(circle, #c4c2b8 1px, transparent 1px);
+  background-size: 24px 24px;
 }
+.dark .dot-grid-bg {
+  background-image: radial-gradient(circle, hsl(0 0% 20%) 1px, transparent 1px);
+}
+
+@keyframes glitch {
+  0%, 90%, 100% {
+    transform: translate(0);
+    filter: none;
+  }
+  92% {
+    transform: translate(-2px, 1px);
+    filter: hue-rotate(90deg);
+  }
+  94% {
+    transform: translate(2px, -1px);
+    filter: hue-rotate(-90deg);
+  }
+  96% {
+    transform: translate(-1px, -1px);
+    filter: none;
+  }
+  98% {
+    transform: translate(1px, 2px);
+    filter: hue-rotate(45deg);
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes receipt-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-glitch { animation: glitch 5s infinite; }
+.animate-marquee { animation: marquee 30s linear infinite; }
+.animate-blink { animation: blink 1s step-end infinite; }
+.receipt-enter { animation: receipt-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 @layer components {
   .font-display {
-    font-family: var(--font-display), system-ui, sans-serif;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    text-transform: lowercase;
+    font-family: var(--font-geist-pixel-grid), var(--font-mono), monospace;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
   }
 
   .font-data {
     font-family: var(--font-mono), ui-monospace, monospace;
-    font-feature-settings: 'ss01', 'zero';
+    font-feature-settings: 'zero';
     letter-spacing: -0.02em;
   }
 
@@ -94,37 +174,36 @@ body::before {
   }
 
   .panel {
-    background: var(--panel);
-    border: 1px solid var(--ridge);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    background: hsl(var(--background) / 0.85);
+    border: 2px solid hsl(var(--foreground));
+    backdrop-filter: blur(4px);
   }
 
   .panel-raised {
-    background: linear-gradient(180deg, var(--panel-raised) 0%, var(--panel) 100%);
-    border: 1px solid var(--ridge-bright);
+    background: hsl(var(--muted) / 0.5);
+    border: 2px solid hsl(var(--foreground));
   }
 
   .receipt {
-    background: linear-gradient(180deg, #161b26 0%, #10141c 100%);
-    border-left: 3px solid var(--mint);
+    background: hsl(var(--muted) / 0.45);
+    border-left: 3px solid var(--signal);
     font-family: var(--font-mono), monospace;
   }
 
   .btn-signal {
-    background: var(--signal);
-    color: var(--void);
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
     font-family: var(--font-mono), monospace;
     font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 10px 18px;
-    border: none;
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    border: 2px solid hsl(var(--foreground));
     transition: filter 120ms ease, transform 120ms ease;
   }
   .btn-signal:hover:not(:disabled) {
-    filter: brightness(1.08);
+    filter: brightness(1.05);
   }
   .btn-signal:active:not(:disabled) {
     transform: translateY(1px);
@@ -134,7 +213,7 @@ body::before {
     cursor: not-allowed;
   }
   .btn-signal:focus-visible {
-    outline: 2px solid var(--mint);
+    outline: 2px solid var(--signal);
     outline-offset: 3px;
   }
 
@@ -146,12 +225,12 @@ body::before {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 10px 14px;
-    border: 1px dashed var(--ridge);
+    border: 2px dashed hsl(var(--border));
     transition: color 120ms, border-color 120ms;
   }
   .btn-ghost:hover {
     color: var(--ink);
-    border-color: var(--ridge-bright);
+    border-color: hsl(var(--foreground));
   }
 
   .chip {
@@ -163,33 +242,27 @@ body::before {
     letter-spacing: 0.1em;
     text-transform: uppercase;
     padding: 4px 10px;
-    border: 1px solid var(--ridge);
+    border: 2px solid hsl(var(--border));
     color: var(--ink-dim);
-    background: rgba(0, 0, 0, 0.25);
+    background: hsl(var(--background) / 0.6);
   }
   .chip-live {
-    border-color: rgba(61, 255, 168, 0.35);
-    color: var(--mint);
+    border-color: rgba(234, 88, 12, 0.5);
+    color: var(--signal);
   }
   .chip-live::before {
     content: '';
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--mint);
-    box-shadow: 0 0 8px var(--mint);
+    background: var(--signal);
+    box-shadow: 0 0 8px rgba(234, 88, 12, 0.45);
     animation: pulse-dot 2s ease-in-out infinite;
   }
 
-  .stat-mint {
-    color: var(--mint);
-  }
-  .stat-signal {
-    color: var(--signal);
-  }
-  .stat-hot {
-    color: var(--hot);
-  }
+  .stat-mint { color: var(--signal); }
+  .stat-signal { color: var(--signal); }
+  .stat-hot { color: var(--hot); }
 
   .hairline-v {
     width: 1px;
@@ -198,39 +271,7 @@ body::before {
   }
 }
 
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
-@keyframes receipt-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.receipt-enter {
-  animation: receipt-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  body::before {
-    display: none;
-  }
-  .chip-live::before {
-    animation: none;
-  }
-  .receipt-enter {
-    animation: none;
-  }
+  .chip-live::before { animation: none; }
+  .receipt-enter { animation: none; }
 }

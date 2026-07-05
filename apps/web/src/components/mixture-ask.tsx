@@ -43,7 +43,7 @@ interface BtlMixtureResponse {
 const DEFAULT_PROMPT =
   'What reentrancy patterns should I check first in an ERC-4626 vault audit?';
 
-export function MixtureDemo() {
+export function MixtureAsk() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [topic, setTopic] = useState('auto');
   const [response, setResponse] = useState<BtlMixtureResponse | null>(null);
@@ -94,16 +94,12 @@ export function MixtureDemo() {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="label-rail mb-2">live terminal</div>
-          <h2 className="font-display text-4xl text-[var(--ink)]">mixture query</h2>
-        </div>
-        <code className="font-data text-[10px] text-[var(--ink-ghost)]">POST /api/mixture</code>
+        <h1 className="font-display text-4xl text-[var(--ink)]">Ask</h1>
       </div>
 
       <div className="panel p-5">
         <label htmlFor="mixture-prompt" className="label-rail mb-2 block">
-          agent prompt
+          question
         </label>
         <textarea
           id="mixture-prompt"
@@ -136,7 +132,7 @@ export function MixtureDemo() {
             disabled={running || !prompt.trim()}
             className="btn-signal"
           >
-            {running ? 'routing…' : runCount > 0 ? `re-run #${runCount + 1}` : 'execute'}
+            {running ? 'routing…' : runCount > 0 ? `re-run #${runCount + 1}` : 'ask'}
           </button>
         </div>
       </div>
@@ -153,15 +149,15 @@ export function MixtureDemo() {
           <div className="label-rail text-[var(--hot)]">fault</div>
           <p className="mt-2 font-data text-sm text-[var(--ink)]">{error}</p>
           <p className="mt-2 text-xs text-[var(--ink-dim)]">
-            Set <code className="font-data">GATEWAY_API_KEY</code> and{' '}
-            <code className="font-data">BRAINPEDIA_BRAIN_URL</code> on the server.
+            Set <code className="font-data">GATEWAY_API_KEY</code>,{' '}
+            <code className="font-data">ZG_WALLET_PRIVATE_KEY</code>, and brain env vars on the
+            server.
           </p>
         </div>
       )}
 
       {response && econ && (
         <div className="flex flex-col gap-5">
-          {/* SIGNATURE: receipt strip */}
           <div className="receipt receipt-enter p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -199,7 +195,6 @@ export function MixtureDemo() {
             </div>
           </div>
 
-          {/* Run history mini ledger */}
           {history.length > 1 && (
             <div className="panel p-4">
               <div className="label-rail mb-3">run history</div>

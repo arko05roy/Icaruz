@@ -8,8 +8,7 @@ export default function BrainsPage() {
         <div className="label-rail mb-2">catalog</div>
         <h1 className="font-display text-4xl text-[var(--ink)]">specialist brains</h1>
         <p className="mt-3 max-w-2xl text-sm text-[var(--ink-dim)]">
-          Local registry for the BTL hackathon build — no ENS, no chain. Each brain is a
-          prefix-stable RAG endpoint the mixture orchestrator fans out to.
+          Specialist knowledge endpoints the mixture orchestrator fans out to.
         </p>
       </header>
 

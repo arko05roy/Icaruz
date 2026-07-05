@@ -5,6 +5,14 @@
   "description": "Brain-side service — handles incoming /mcp/{peer}/brainpedia.brain calls, retrieves articles from 0G Storage, runs inference on 0G Compute, returns answers.",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
   "bin": {
     "brainpedia-brain": "dist/cli.js"
   },

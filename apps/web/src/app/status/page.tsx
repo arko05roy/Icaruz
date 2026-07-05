@@ -1,16 +1,19 @@
 import Link from 'next/link';
 import { isBtlConfigured } from '@brainpedia/compute-btl';
+import { isBrainRuntimeConfigured } from '@/lib/brain-runtime';
 
 export const dynamic = 'force-dynamic';
 
 export default function StatusPage() {
   const btl = isBtlConfigured();
-  const brainUrl = Boolean(process.env.BRAINPEDIA_BRAIN_URL);
+  const brain = isBrainRuntimeConfigured();
 
   const checks = [
     { name: 'GATEWAY_API_KEY', ok: btl },
-    { name: 'BRAINPEDIA_BRAIN_URL', ok: brainUrl },
+    { name: 'brain runtime (in-process)', ok: brain },
     { name: 'BRAIN_STORAGE_ROOT', ok: Boolean(process.env.BRAIN_STORAGE_ROOT) },
+    { name: 'BRAIN_ENS_NAME', ok: Boolean(process.env.BRAIN_ENS_NAME) },
+    { name: 'BRAIN_SPECIALTY', ok: Boolean(process.env.BRAIN_SPECIALTY) },
   ];
 
   return (
@@ -18,7 +21,8 @@ export default function StatusPage() {
       <div className="label-rail mb-2">health</div>
       <h1 className="font-display text-3xl text-[var(--ink)]">runtime status</h1>
       <p className="mt-2 text-sm text-[var(--ink-dim)]">
-        BTL hackathon build — no on-chain checks.
+        Server configuration for the ask runtime. Brain queries run in-process via Next.js API
+        routes — no separate brain service required.
       </p>
 
       <ul className="mt-8 flex flex-col gap-2">
@@ -33,8 +37,8 @@ export default function StatusPage() {
         ))}
       </ul>
 
-      <Link href="/#demo" className="btn-signal mt-8 inline-block">
-        run mixture demo
+      <Link href="/ask" className="btn-signal mt-8 inline-block">
+        open ask
       </Link>
     </main>
   );

@@ -24,6 +24,12 @@ import {
   type BtlEconomics,
 } from '@brainpedia/compute-btl';
 import { DISCOVERY_TOPICS, listLocalBrainsForTopic } from '@/lib/brain-registry';
+import {
+  BTL_DEMO_ACCESS_TOKEN,
+  BTL_DEMO_AGENT,
+  isBrainRuntimeConfigured,
+  queryBrainLocal,
+} from '@/lib/brain-runtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -131,15 +137,18 @@ export async function POST(req: NextRequest) {
   }
 
   const brainUrl = process.env.BRAINPEDIA_BRAIN_URL;
-  if (!brainUrl) {
+  if (!isBrainRuntimeConfigured() && !brainUrl) {
     return NextResponse.json(
-      { error: 'BRAINPEDIA_BRAIN_URL must point at the brain HTTP service' },
+      {
+        error:
+          'brain runtime not configured — set ZG_WALLET_PRIVATE_KEY, BRAIN_ENS_NAME, BRAIN_STORAGE_ROOT, BRAIN_SPECIALTY',
+      },
       { status: 503 },
     );
   }
 
   const settled = await Promise.allSettled(
-    catalog.map((b) => callBrain(brainUrl, prompt, b.target)),
+    catalog.map((b) => callBrain(prompt, b.target, brainUrl)),
   );
 
   const brains: BrainRow[] = settled.map((s, i) => {
@@ -224,19 +233,42 @@ export async function POST(req: NextRequest) {
 }
 
 async function callBrain(
-  brainUrl: string,
   prompt: string,
   target: string,
+  legacyBrainUrl?: string,
 ): Promise<
   | { ok: true; answer: string; citations: string[]; btl?: BtlEconomics }
   | { ok: false; errorMessage: string }
 > {
-  const endpoint = brainUrl.replace(/\/+$/, '') + '/mcp';
+  if (isBrainRuntimeConfigured()) {
+    try {
+      const result = await queryBrainLocal({
+        prompt,
+        target,
+        accessToken: BTL_DEMO_ACCESS_TOKEN,
+        agent: BTL_DEMO_AGENT,
+      });
+      return {
+        ok: true,
+        answer: result.answer,
+        citations: result.citations,
+        btl: result.btl,
+      };
+    } catch (err) {
+      return { ok: false, errorMessage: (err as Error).message };
+    }
+  }
+
+  if (!legacyBrainUrl) {
+    return { ok: false, errorMessage: 'brain runtime not configured' };
+  }
+
+  const endpoint = legacyBrainUrl.replace(/\/+$/, '') + '/mcp';
   const rpcBody = {
     jsonrpc: '2.0' as const,
     id: 1,
     method: 'query',
-    params: { prompt, target, accessToken: 'btl-hackathon', agent: '0x0000000000000000000000000000000000000001' },
+    params: { prompt, target, accessToken: BTL_DEMO_ACCESS_TOKEN, agent: BTL_DEMO_AGENT },
   };
 
   let upstream: Response;

@@ -20,7 +20,7 @@ interface BrainResult {
   };
 }
 
-export function QueryDemo({ brainName, target }: Props) {
+export function BrainQuery({ brainName, target }: Props) {
   const [prompt, setPrompt] = useState('Summarize your specialty in two sentences.');
   const [result, setResult] = useState<BrainResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export function QueryDemo({ brainName, target }: Props) {
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="label-rail">single-brain query · btl runtime</div>
+      <div className="label-rail">single-brain query</div>
       <div className="panel p-4">
         <textarea
           value={prompt}

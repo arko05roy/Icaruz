@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { LOCAL_BRAINS } from '@/lib/brain-registry';
-import { QueryDemo } from '@/components/query-demo';
+import { BrainQuery } from '@/components/brain-query';
 
 interface BrainPageProps {
   params: Promise<{ name: string }>;
@@ -33,7 +33,7 @@ export default async function BrainPage({ params }: BrainPageProps) {
       </section>
 
       <section className="mt-10">
-        <QueryDemo brainName={brain.name} target={brain.target} />
+        <BrainQuery brainName={brain.name} target={brain.target} />
       </section>
     </main>
   );
