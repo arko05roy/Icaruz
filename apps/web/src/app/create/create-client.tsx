@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import Link from 'next/link';
+import { connectObsidian } from '@/lib/obsidian-vault-browser';
 
 interface CompiledArticleSummary {
   slug: string;
@@ -40,6 +41,8 @@ type FlowState =
   | 'published'
   | 'error';
 
+type SourceMode = 'upload' | 'obsidian';
+
 const TOPICS = ['research', 'frameworks', 'all'] as const;
 
 export function CreateBrainClient() {
@@ -48,7 +51,11 @@ export function CreateBrainClient() {
   const { disconnect } = useDisconnect();
 
   const [hydrated, setHydrated] = useState(false);
+  const [sourceMode, setSourceMode] = useState<SourceMode>('upload');
   const [files, setFiles] = useState<File[]>([]);
+  const [sourceLabel, setSourceLabel] = useState<string | null>(null);
+  const [obsidianLoading, setObsidianLoading] = useState(false);
+  const [obsidianError, setObsidianError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [specialty, setSpecialty] = useState('');
   const [payoutWallet, setPayoutWallet] = useState('');
@@ -76,14 +83,48 @@ export function CreateBrainClient() {
     setRegisterResult(null);
   }, []);
 
-  const onPickFiles = useCallback(
-    (picked: FileList | null) => {
-      if (!picked) return;
-      setFiles(Array.from(picked));
+  const setKnowledgeFiles = useCallback(
+    (picked: File[], label: string | null) => {
+      setFiles(picked);
+      setSourceLabel(label);
+      setObsidianError(null);
       resetFlow();
     },
     [resetFlow],
   );
+
+  const onPickFiles = useCallback(
+    (picked: FileList | null) => {
+      if (!picked) return;
+      setKnowledgeFiles(Array.from(picked), null);
+    },
+    [setKnowledgeFiles],
+  );
+
+  const switchSourceMode = useCallback(
+    (mode: SourceMode) => {
+      setSourceMode(mode);
+      setFiles([]);
+      setSourceLabel(null);
+      setObsidianError(null);
+      resetFlow();
+    },
+    [resetFlow],
+  );
+
+  const onConnectObsidian = useCallback(async () => {
+    setObsidianLoading(true);
+    setObsidianError(null);
+    try {
+      const { files: vaultFiles, label } = await connectObsidian();
+      setKnowledgeFiles(vaultFiles, label);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setObsidianError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setObsidianLoading(false);
+    }
+  }, [setKnowledgeFiles]);
 
   const toggleTopic = (topic: string) => {
     setTopics((prev) =>
@@ -170,34 +211,115 @@ export function CreateBrainClient() {
         </div>
       </div>
 
-      <div
-        className="panel border-2 border-dashed border-[var(--ridge)] p-6 text-center"
-        onDrop={(ev) => {
-          ev.preventDefault();
-          onPickFiles(ev.dataTransfer.files);
-        }}
-        onDragOver={(ev) => ev.preventDefault()}
-      >
-        <p className="text-sm text-[var(--ink-dim)]">
-          Drop markdown, PDF, DOCX, or plain text files.
-        </p>
-        <input
-          type="file"
-          multiple
-          accept=".md,.markdown,.txt,.text,.pdf,.docx"
-          onChange={(ev) => onPickFiles(ev.target.files)}
-          className="mx-auto mt-3 block max-w-md text-sm"
-        />
-        {files.length > 0 && (
-          <ul className="mx-auto mt-3 max-w-md text-left font-data text-xs text-[var(--ink-ghost)]">
-            {files.map((f) => (
+      <div>
+        <div className="label-rail mb-2">knowledge source</div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => switchSourceMode('upload')}
+            className={`panel px-3 py-1 font-data text-xs ${
+              sourceMode === 'upload' ? 'text-[var(--signal)]' : 'text-[var(--ink-ghost)]'
+            }`}
+          >
+            upload files
+          </button>
+          <button
+            type="button"
+            onClick={() => switchSourceMode('obsidian')}
+            className={`panel px-3 py-1 font-data text-xs ${
+              sourceMode === 'obsidian' ? 'text-[var(--signal)]' : 'text-[var(--ink-ghost)]'
+            }`}
+          >
+            obsidian
+          </button>
+        </div>
+      </div>
+
+      {sourceMode === 'upload' ? (
+        <div
+          className="panel border-2 border-dashed border-[var(--ridge)] p-6 text-center"
+          onDrop={(ev) => {
+            ev.preventDefault();
+            onPickFiles(ev.dataTransfer.files);
+          }}
+          onDragOver={(ev) => ev.preventDefault()}
+        >
+          <p className="text-sm text-[var(--ink-dim)]">
+            Drop markdown, PDF, DOCX, or plain text files.
+          </p>
+          <input
+            type="file"
+            multiple
+            accept=".md,.markdown,.txt,.text,.pdf,.docx"
+            onChange={(ev) => onPickFiles(ev.target.files)}
+            className="mx-auto mt-3 block max-w-md text-sm"
+          />
+        </div>
+      ) : (
+        <div className="panel border-2 border-dashed border-[var(--ridge)] p-6 text-center">
+          {sourceLabel ? (
+            <>
+              <p className="font-data text-sm text-[var(--signal)]">{sourceLabel}</p>
+              <button
+                type="button"
+                className="mt-3 text-xs text-[var(--ink-ghost)] underline"
+                onClick={() => {
+                  setFiles([]);
+                  setSourceLabel(null);
+                  resetFlow();
+                }}
+              >
+                change vault
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn-signal"
+              disabled={obsidianLoading}
+              onClick={onConnectObsidian}
+            >
+              {obsidianLoading ? 'connecting…' : 'connect obsidian'}
+            </button>
+          )}
+          {obsidianError && (
+            <p className="mt-3 font-data text-xs text-[var(--hot)]">{obsidianError}</p>
+          )}
+        </div>
+      )}
+
+      {files.length > 0 && sourceMode === 'upload' && (
+        <div className="panel p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-data text-xs text-[var(--ink-dim)]">
+              {sourceLabel
+                ? sourceLabel
+                : `${files.length} file${files.length === 1 ? '' : 's'}`}
+            </div>
+            <button
+              type="button"
+              className="text-xs text-[var(--ink-ghost)] underline"
+              onClick={() => {
+                setFiles([]);
+                setSourceLabel(null);
+                resetFlow();
+              }}
+            >
+              clear
+            </button>
+          </div>
+          <ul className="mt-2 max-h-40 overflow-auto font-data text-xs text-[var(--ink-ghost)]">
+            {files.slice(0, 50).map((f) => (
               <li key={f.name + f.size} className="truncate">
                 {f.name}
               </li>
             ))}
+            {files.length > 50 && (
+              <li className="text-[var(--ink-dim)]">…and {files.length - 50} more</li>
+            )}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="brain name" id="brain-name">

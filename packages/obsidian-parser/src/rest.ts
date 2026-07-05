@@ -41,6 +41,14 @@ export interface RestVaultClientOptions {
 }
 
 export async function readVaultFromRest(opts: RestVaultClientOptions): Promise<ObsidianNote[]> {
+  const rawFiles = await readVaultRawFromRest(opts);
+  return rawFiles.map(({ path, raw }) => parseNote(path, raw));
+}
+
+/** Raw markdown files from the vault — useful when you need full frontmatter preserved. */
+export async function readVaultRawFromRest(
+  opts: RestVaultClientOptions,
+): Promise<Array<{ path: string; raw: string }>> {
   const baseUrl = (opts.baseUrl ?? 'http://localhost:27123').replace(/\/+$/, '');
   const root = (opts.rootPath ?? '').replace(/^\/+|\/+$/g, '');
   const headers = {
@@ -49,17 +57,14 @@ export async function readVaultFromRest(opts: RestVaultClientOptions): Promise<O
   };
 
   const filePaths = await listAllFiles(root, baseUrl, headers, opts.signal);
-  const notes: ObsidianNote[] = [];
+  const out: Array<{ path: string; raw: string }> = [];
   for (const absPath of filePaths) {
     if (!absPath.toLowerCase().endsWith('.md')) continue;
     const raw = await readFile(absPath, baseUrl, opts.apiKey, opts.signal);
-    // Re-base the path relative to rootPath so wikilinks + slugs don't
-    // include the per-user prefix. A vault carved into users/yudhi/ should
-    // produce the same slugs as a standalone vault would.
     const relPath = root && absPath.startsWith(`${root}/`) ? absPath.slice(root.length + 1) : absPath;
-    notes.push(parseNote(relPath, raw));
+    out.push({ path: relPath, raw });
   }
-  return notes;
+  return out;
 }
 
 interface VaultListing {

@@ -12,8 +12,8 @@ export default function CreatePage() {
         <div className="label-rail mb-2">publish</div>
         <h1 className="font-display text-4xl text-[var(--ink)]">create a brain</h1>
         <p className="mt-3 max-w-2xl text-sm text-[var(--ink-dim)]">
-          Upload your knowledge, set a wallet and per-query price. Agents pay you via x402 when
-          your brain answers.
+          Upload files or connect your Obsidian vault, set a wallet and per-query price. Agents pay
+          you via x402 when your brain answers.
         </p>
       </header>
       <CreateBrainClient />

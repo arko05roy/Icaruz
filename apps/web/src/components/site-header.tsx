@@ -8,7 +8,7 @@ import { ThemeToggle } from '@/components/landing/theme-toggle';
 const NAV = [
   { label: 'Ask', href: '/ask' },
   { label: 'Brains', href: '/brains' },
-  { label: 'Status', href: '/status' },
+  { label: 'Create', href: '/create' },
 ] as const;
 
 export function SiteHeader() {
