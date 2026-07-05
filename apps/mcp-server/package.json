@@ -1,0 +1,60 @@
+{
+  "name": "brainpedia-mcp",
+  "version": "0.4.3",
+  "description": "Brainpedia MCP server. Turn any folder of knowledge (Obsidian, PDF, Word, plain text) into a paid AI Brain on 0G mainnet that other agents pay to query. Drops into Claude Code via stdio (`claude mcp add-json`).",
+  "keywords": [
+    "mcp",
+    "brainpedia",
+    "obsidian",
+    "ens",
+    "0g",
+    "axl",
+    "agentic-web",
+    "iNFT",
+    "erc-7857",
+    "claude"
+  ],
+  "homepage": "https://brainpedia.up.railway.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xYudhishthra/brainpedia.git",
+    "directory": "apps/mcp-server"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/bundle.js",
+  "bin": {
+    "brainpedia-mcp": "dist/bundle.js"
+  },
+  "files": [
+    "dist/bundle.js",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc && bun run bundle",
+    "bundle": "bun build src/index.ts --outfile dist/bundle.js --target=node --minify",
+    "start": "node dist/bundle.js",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run bundle && chmod +x dist/bundle.js",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@brainpedia/axl": "workspace:*",
+    "@brainpedia/compute-0g": "workspace:*",
+    "@brainpedia/ens": "workspace:*",
+    "@brainpedia/obsidian-parser": "workspace:*",
+    "@brainpedia/storage-0g": "workspace:*",
+    "@ensdomains/ensjs": "^4.2.2",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "ethers": "^6.13.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "viem": "^2.21.55",
+    "zod": "^3.24.1"
+  }
+}
