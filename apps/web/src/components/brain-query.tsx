@@ -34,7 +34,10 @@ export function BrainQuery({ brainName, target }: Props) {
     try {
       const res = await fetch('/api/brain', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-demo-access': 'btl-hackathon',
+        },
         body: JSON.stringify({ prompt, target }),
       });
       const data = await res.json();

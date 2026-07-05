@@ -23,7 +23,7 @@ import {
   buildBrainSystemPrompt,
   type BtlEconomics,
 } from '@brainpedia/compute-btl';
-import { DISCOVERY_TOPICS, listLocalBrainsForTopic } from '@/lib/brain-registry';
+import { DISCOVERY_TOPICS, buildCreatorEconomics, listAllBrainsForTopic } from '@/lib/brain-registry';
 import {
   BTL_DEMO_ACCESS_TOKEN,
   BTL_DEMO_AGENT,
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
   }
 
   const cfg = loadBtlConfig();
-  const brains = listLocalBrainsForTopic(topic);
+  const brains = await listAllBrainsForTopic(topic);
   const sample = brains[0];
   if (!sample) {
     return NextResponse.json({ error: `no brains for topic ${topic}` }, { status: 404 });
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     router = { topic: choice.topic, reason: choice.reason, source: choice.source };
   }
 
-  const catalog = listLocalBrainsForTopic(topic);
+  const catalog = await listAllBrainsForTopic(topic);
   if (catalog.length === 0) {
     return NextResponse.json({ error: `no brains for topic ${topic}` }, { status: 404 });
   }
@@ -207,6 +207,7 @@ export async function POST(req: NextRequest) {
   }
 
   const economics = aggregateBtlEconomics(btlRows);
+  const creatorEconomics = buildCreatorEconomics(catalog);
 
   return NextResponse.json({
     mode: 'mixture-btl',
@@ -219,6 +220,7 @@ export async function POST(req: NextRequest) {
     synthesisSource,
     synthesisBtl,
     btlEconomics: economics,
+    creatorEconomics,
     /**
      * Hackathon demo narrative: what you would have paid vs what BTL charged.
      * Re-run the same prompt to watch cacheHits climb (prefix cache on wiki context).

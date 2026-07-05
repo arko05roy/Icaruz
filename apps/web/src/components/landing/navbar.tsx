@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/landing/theme-toggle"
 const NAV = [
   { label: "How it works", href: "#how-it-works" },
   { label: "Brains", href: "/brains" },
+  { label: "Create", href: "/create" },
   { label: "BTL Docs", href: "https://runtime.badtheorylabs.com/docs", external: true },
   { label: "GitHub", href: "https://github.com/arko05roy/Icaruz", external: true },
 ] as const

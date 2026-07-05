@@ -38,6 +38,11 @@ interface BtlMixtureResponse {
     savingsRate: number;
     byCacheTier: Record<string, number>;
   };
+  creatorEconomics?: {
+    brains: Array<{ id: string; name: string; wallet: string | null; priceUsd: number; paid: boolean }>;
+    totalUsd: number;
+    x402: { endpoint: string; instructions: string };
+  };
 }
 
 const DEFAULT_PROMPT =
@@ -194,6 +199,30 @@ export function MixtureAsk() {
                 .join(' · ') || '—'}
             </div>
           </div>
+
+          {response.creatorEconomics && response.creatorEconomics.totalUsd > 0 && (
+            <div className="receipt receipt-enter border-l-[3px] border-l-[var(--ice)] p-5">
+              <div className="label-rail text-[var(--ice)]">creator royalties (x402)</div>
+              <div className="mt-3 font-data text-lg text-[var(--ink)]">
+                ${response.creatorEconomics.totalUsd.toFixed(2)}
+              </div>
+              <p className="mt-2 text-xs text-[var(--ink-dim)]">
+                {response.creatorEconomics.brains.filter((b) => b.priceUsd > 0).length} priced brain
+                {response.creatorEconomics.brains.filter((b) => b.priceUsd > 0).length === 1 ? '' : 's'}{' '}
+                · agents settle per brain via {response.creatorEconomics.x402.endpoint}
+              </p>
+              <ul className="mt-3 flex flex-col gap-1 font-data text-[10px] text-[var(--ink-ghost)]">
+                {response.creatorEconomics.brains
+                  .filter((b) => b.priceUsd > 0)
+                  .map((b) => (
+                    <li key={b.id}>
+                      {b.name}: ${b.priceUsd.toFixed(2)}
+                      {b.wallet ? ` → ${b.wallet.slice(0, 6)}…${b.wallet.slice(-4)}` : ''}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
 
           {history.length > 1 && (
             <div className="panel p-4">

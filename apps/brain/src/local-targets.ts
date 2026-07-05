@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 /**
  * BTL hackathon targets — short ids the mixture API passes as `target`.
  * Maps to storage roots already on 0G (or override via env JSON).
@@ -5,8 +8,39 @@
 export interface LocalBrainTarget {
   name: string;
   specialty: string;
-  /** 0G Storage merkle root. Override per-target via LOCAL_BRAIN_ROOTS_JSON env. */
+  /** 0G Storage merkle root, or `local:{brainId}` for file-backed snapshots. */
   storageRoot: string;
+}
+
+interface CreatorBrainJson {
+  id: string;
+  name: string;
+  specialty: string;
+  storageRoot: string;
+}
+
+let creatorCache: CreatorBrainJson[] | null = null;
+let creatorCacheAt = 0;
+const CREATOR_CACHE_MS = 5_000;
+
+function brainsDataDir(): string {
+  return process.env.BRAINS_DATA_DIR?.trim() || join(process.cwd(), 'data');
+}
+
+async function loadCreatorBrainsJson(): Promise<CreatorBrainJson[]> {
+  const now = Date.now();
+  if (creatorCache && now - creatorCacheAt < CREATOR_CACHE_MS) {
+    return creatorCache;
+  }
+  try {
+    const raw = await readFile(join(brainsDataDir(), 'brains.json'), 'utf8');
+    const parsed = JSON.parse(raw) as CreatorBrainJson[];
+    creatorCache = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    creatorCache = [];
+  }
+  creatorCacheAt = now;
+  return creatorCache;
 }
 
 /** Defaults mirror live demo brains; override roots without redeploying. */
@@ -34,6 +68,7 @@ function rootFor(key: string): string {
   return process.env.BRAIN_STORAGE_ROOT ?? '';
 }
 
+/** Sync resolve for built-in demo targets only. */
 export function resolveLocalTarget(id: string): LocalBrainTarget | null {
   const key = id.toLowerCase().replace(/\.bpedia\.eth$/, '');
   const base = LOCAL_BRAIN_TARGETS[key];
@@ -52,4 +87,21 @@ export function resolveLocalTarget(id: string): LocalBrainTarget | null {
   }
 
   return storageRoot ? { ...base, storageRoot } : null;
+}
+
+/** Async resolve including creator brains from data/brains.json. */
+export async function resolveLocalTargetAsync(id: string): Promise<LocalBrainTarget | null> {
+  const key = id.toLowerCase().replace(/\.bpedia\.eth$/, '');
+  const builtIn = resolveLocalTarget(key);
+  if (builtIn) return builtIn;
+
+  const creators = await loadCreatorBrainsJson();
+  const creator = creators.find((b) => b.id === key || b.name.toLowerCase() === key);
+  if (!creator?.storageRoot) return null;
+
+  return {
+    name: creator.name,
+    specialty: creator.specialty,
+    storageRoot: creator.storageRoot,
+  };
 }

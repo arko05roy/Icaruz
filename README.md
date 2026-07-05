@@ -1,26 +1,68 @@
 # Icaruz
 
-**Cache-aware mixture-of-brains on [BTL Runtime](https://runtime.badtheorylabs.com/).**
+**Ask many experts at once. Pay less for AI. Let experts get paid when their knowledge is used.**
 
-Icaruz fans one agent prompt across multiple specialist knowledge brains. Each brain retrieves wiki context, builds a **prefix-stable RAG prompt**, and calls BTL. On repeat queries, BTL's prefix cache and retrieval dedupe cut cost — and every call returns verifiable economics in `x-btl-*` headers.
+Icaruz is a web app and API that routes one question to several specialist “brains” (curated knowledge bases), merges their answers, and shows you exactly what inference cost — and what you saved. Experts can publish their own brains, set a wallet address, and earn a small fee per query when agents use them.
 
-> Built for the BTL hackathon. Not a base-URL swap: we structure prompts so mixture fan-out benefits from BTL's cache layer.
+Built on [BTL Runtime](https://runtime.badtheorylabs.com/) for cheap, cache-aware inference. Creator payouts use [x402](https://www.x402.org/) micropayments (USDC on Base).
 
 ---
 
-## The problem
+## In plain English
 
-Multi-expert agents are expensive by design. A mixture query hits N brains in parallel. Each call resends the same wiki articles as context. Standard gateways bill that context N times. There is no ledger that proves what you saved.
-
-## The solution
-
-Icaruz separates **stable wiki prefix** from **volatile user question**, routes cheap classification through a small model, and aggregates per-brain BTL economics into one receipt.
-
-| Layer | What it does |
+| Who you are | What Icaruz does for you |
 |---|---|
-| **Brains** | Specialist wikis (security, frameworks, docs). Top-K article retrieval per query. |
-| **BTL Runtime** | Inference gateway with prefix cache, chunk dedupe, and per-request economics. |
-| **Mixture API** | Fans out to N brains, synthesises answers, returns a savings ledger. |
+| **Someone with a question** | Type a prompt at [/ask](http://localhost:3000/ask). Icaruz picks relevant specialists, asks them in parallel, and gives you one combined answer plus a receipt showing AI cost and savings. |
+| **Someone with expertise** | Upload notes (markdown, PDF, Word) at [/create](http://localhost:3000/create). Name your brain, paste a wallet, set a price (e.g. $0.01 per query). It joins the catalog; agents pay you when they query it. |
+| **A developer / agent** | Call `POST /api/mixture` for multi-brain answers + `btlEconomics`. Call `POST /api/brain` for one brain; priced brains return HTTP 402 until x402 payment is attached. Use the `query_brain_x402` MCP tool for automatic pay-and-retry. |
+
+**The mental model:** Think of a panel of specialists in a room. You ask once; they answer in parallel; a moderator synthesizes. BTL keeps the “reading the same reference docs” part cheap on repeat. x402 sends pennies to whoever owned the docs.
+
+---
+
+## Two layers (how the money flows)
+
+```mermaid
+flowchart TB
+    subgraph layer1 [Layer 1 — BTL inference]
+        Q[Your question]
+        MIX[Mixture fan-out]
+        BTL[BTL Runtime]
+        RCPT[btlEconomics receipt]
+        Q --> MIX --> BTL --> RCPT
+    end
+
+    subgraph layer2 [Layer 2 — Creator brains]
+        CREATE["/create upload + wallet"]
+        REG[brains.json catalog]
+        X402[x402 on /api/brain]
+        WALLET[Creator wallet]
+        CREATE --> REG
+        REG --> MIX
+        X402 --> WALLET
+    end
+```
+
+| Layer | Who pays | Typical amount | What you get |
+|---|---|---|---|
+| **BTL** | Platform / querier (your `GATEWAY_API_KEY`) | Fractions of a cent per call | Fast inference + prefix cache + `x-btl-*` proof headers |
+| **Creator** | Agent or API client (x402) | ~$0.01–0.02 per brain query | Direct payout to the brain owner’s wallet |
+| **Demo UI** | Nobody extra | $0 | `X402_SKIP_PAYMENT=true` skips x402 so humans can try the app without a wallet |
+
+BTL makes the *inference* cheap. x402 makes the *expertise* payable. On a mixture query you see **two receipts**: BTL savings and creator royalties (informational in the UI; agents settle per brain via x402).
+
+---
+
+## The technical problem (why this exists)
+
+Multi-expert agents are expensive by design. A mixture query hits N brains in parallel. Each call resends the same wiki articles as context. Standard gateways bill that context N times. There is no ledger that proves what you saved — and no simple way for the human who wrote those articles to earn when an agent uses them.
+
+## The technical solution
+
+1. **Prefix-stable RAG** — Wiki context stays in a fixed prompt block; only the user question changes. BTL’s prefix cache and chunk dedupe hit on repeat queries.
+2. **Mixture orchestration** — Cheap router model picks a topic; fan-out queries N brains; synthesis merges answers.
+3. **Creator catalog** — Uploaded knowledge compiles to articles, stored locally (and optionally on 0G). Registry in `apps/web/data/brains.json`.
+4. **x402 gate** — Priced brains on `POST /api/brain` return HTTP 402 until payment; settlement goes to `payoutWallet`.
 
 ---
 
@@ -31,16 +73,16 @@ Icaruz separates **stable wiki prefix** from **volatile user question**, routes 
 ```mermaid
 flowchart TB
     subgraph Client
-        UI[Web UI / API client]
+        UI[Web UI / API / MCP agent]
     end
 
     subgraph Icaruz["Icaruz (this repo)"]
-        WEB["apps/web<br/>Next.js UI + API"]
+        WEB["apps/web — Next.js"]
         MIX["POST /api/mixture"]
-        MCP["POST /api/mcp"]
-        REG["brain-registry"]
-        BTL_PKG["@brainpedia/compute-btl"]
-        HANDLER["@brainpedia/brain<br/>in-process handler"]
+        BRAIN["POST /api/brain + x402"]
+        CREATE["POST /api/create/register"]
+        REG["brain-registry + brain-store"]
+        HANDLER["@brainpedia/brain handler"]
     end
 
     subgraph BTL["BTL Runtime"]
@@ -48,53 +90,53 @@ flowchart TB
         CACHE["prefix cache + dedupe"]
     end
 
+    subgraph Pay["x402"]
+        FAC[Facilitator]
+        CW[Creator wallets]
+    end
+
     UI --> WEB
     WEB --> MIX
+    WEB --> BRAIN
+    WEB --> CREATE
+    CREATE --> REG
     MIX --> REG
-    MIX -->|"topic routing"| BTL_PKG
-    BTL_PKG --> GW
-    MIX -->|"fan-out N brains"| HANDLER
-    MCP --> HANDLER
-    HANDLER -->|"per-brain inference"| BTL_PKG
-  GW --> CACHE
-    MIX -->|"synthesis"| BTL_PKG
+    MIX --> HANDLER
+    BRAIN --> HANDLER
+    HANDLER --> GW
+    GW --> CACHE
+    BRAIN --> FAC --> CW
 ```
 
 ### Mixture query sequence
 
 ```mermaid
 sequenceDiagram
-    participant U as User
+    participant U as User or agent
     participant API as /api/mixture
-    participant R as BTL Router (btl-2)
-    participant B1 as Brain: yudhi
-    participant B2 as Brain: karpathy
-    participant B3 as Brain: 0g-expert
+    participant R as BTL router
+    participant B1 as Brain A
+    participant B2 as Brain B
     participant BTL as BTL Runtime
     participant S as Synthesis
 
-    U->>API: POST { prompt, topic: "auto" }
-    API->>R: pick topic (cheap model)
+    U->>API: POST prompt, topic auto
+    API->>R: pick topic
     R-->>API: research | frameworks | all
 
     par Fan-out
-        API->>B1: query + target
-        B1->>BTL: prefix-stable RAG prompt
+        API->>B1: query
+        B1->>BTL: prefix-stable RAG
         BTL-->>B1: answer + x-btl-* headers
     and
-        API->>B2: query + target
-        B2->>BTL: prefix-stable RAG prompt
+        API->>B2: query
+        B2->>BTL: prefix-stable RAG
         BTL-->>B2: answer + x-btl-* headers
-    and
-        API->>B3: query + target
-        B3->>BTL: prefix-stable RAG prompt
-        BTL-->>B3: answer + x-btl-* headers
     end
 
-    API->>S: fuse brain answers
-    S->>BTL: synthesis call
-    BTL-->>S: merged answer
-    API-->>U: brains[] + synthesis + btlEconomics
+    API->>S: fuse answers
+    S->>BTL: synthesis
+    API-->>U: brains, synthesis, btlEconomics, creatorEconomics
 ```
 
 ### Why prefix-stable RAG matters
@@ -104,40 +146,66 @@ BTL caches by prompt prefix. Icaruz keeps wiki context in a fixed block; only th
 ```mermaid
 flowchart LR
     subgraph Call1["First query"]
-        P1["SYSTEM: brain specialty"]
-        C1["CONTEXT: article 1..k<br/>(stable prefix)"]
-        Q1["USER: What is reentrancy?"]
+        P1["SYSTEM: specialty"]
+        C1["CONTEXT: articles"]
+        Q1["USER: question"]
     end
 
-    subgraph Call2["Same prompt, re-run"]
-        P2["SYSTEM: brain specialty"]
-        C2["CONTEXT: article 1..k<br/>(cache hit)"]
-        Q2["USER: What is reentrancy?"]
+    subgraph Call2["Same question again"]
+        P2["SYSTEM: specialty"]
+        C2["CONTEXT: cache hit"]
+        Q2["USER: question"]
     end
 
     P1 --> C1 --> Q1
     P2 --> C2 --> Q2
-
-    C2 -.->|"BTL prefix cache"| HIT["lower customerCharge<br/>higher cacheHits"]
+    C2 -.->|BTL prefix cache| HIT["lower charge"]
 ```
 
-**Demo trick:** run the same prompt twice. Watch `cacheHits` climb in the UI receipt strip.
+**Try it:** Run the same prompt twice on [/ask](http://localhost:3000/ask). Watch `cacheHits` climb in the BTL receipt.
+
+---
+
+## Brains catalog
+
+### Built-in demo brains
+
+Ship in [`apps/web/src/lib/brain-registry.ts`](apps/web/src/lib/brain-registry.ts). No wallet required to query in demo mode.
+
+| Brain | Specialty | Topics |
+|---|---|---|
+| `yudhi` | EVM security, audits, incidents | research, all |
+| `karpathy` | LLM wikis, knowledge management | frameworks, all |
+| `0g-expert` | Storage, compute, chain docs | research, all |
+
+### Creator brains
+
+Anyone can publish via [/create](http://localhost:3000/create):
+
+1. Connect wallet (payout address).
+2. Upload files → preview compile.
+3. Set name, specialty, topics, price (default $0.01).
+4. Brain is written to `apps/web/data/brains.json` and snapshots under `data/snapshots/`.
+
+Creator brains appear in [/brains](http://localhost:3000/brains) and in mixture fan-out when their topic matches.
+
+Topic routing (`topic: "auto"`) uses `BTL_ROUTER_MODEL` to pick `research`, `frameworks`, or `all` before fan-out.
 
 ---
 
 ## BTL economics
 
-Every brain call through BTL returns headers the client parses into a ledger:
+Every brain call through BTL returns headers parsed into a ledger:
 
 | Header | Meaning |
 |---|---|
-| `x-btl-request-id` | Request trace ID |
-| `x-btl-cache-tier` | Cache tier used (empty = miss) |
-| `x-btl-benchmark-cost` | What you would have paid at list price |
+| `x-btl-request-id` | Trace ID |
+| `x-btl-cache-tier` | Cache tier (empty = miss) |
+| `x-btl-benchmark-cost` | List-price equivalent |
 | `x-btl-customer-charge` | What BTL charged |
 | `x-btl-saved` | Benchmark minus charge |
 
-`POST /api/mixture` aggregates these into `btlEconomics`:
+`POST /api/mixture` aggregates into `btlEconomics`:
 
 ```json
 {
@@ -151,7 +219,7 @@ Every brain call through BTL returns headers the client parses into a ledger:
 }
 ```
 
-Preview cost without running inference:
+Dry-run quote (no inference):
 
 ```bash
 curl "http://localhost:3000/api/mixture?quote=1&prompt=What+is+reentrancy&topic=research"
@@ -159,23 +227,39 @@ curl "http://localhost:3000/api/mixture?quote=1&prompt=What+is+reentrancy&topic=
 
 ---
 
-## Local brains
+## Creator economics (x402)
 
-No chain, no ENS. Three demo specialists ship in `apps/web/src/lib/brain-registry.ts`:
+Mixture responses include `creatorEconomics` — per-brain wallet, price, and settlement hint:
 
-| Brain | Specialty | Topics |
-|---|---|---|
-| `yudhi` | EVM security, audits, incidents | research, all |
-| `karpathy` | LLM wikis, knowledge management | frameworks, all |
-| `0g-expert` | Storage, compute, chain docs | research, all |
+```json
+{
+  "brains": [
+    { "id": "defi-auditor", "name": "defi-auditor", "wallet": "0x…", "priceUsd": 0.01, "paid": false }
+  ],
+  "totalUsd": 0.01,
+  "x402": {
+    "endpoint": "/api/brain",
+    "instructions": "POST { prompt, target } per brain. Pay via x402, retry with payment header."
+  }
+}
+```
 
-Topic routing (`topic: "auto"`) uses `BTL_ROUTER_MODEL` to pick the best catalog slice before fan-out.
+**Single-brain agent flow:**
+
+1. `POST /api/brain` with `{ "prompt", "target" }`.
+2. If priced and unpaid → **402** with payment requirements.
+3. Agent signs USDC payment (Base Sepolia by default), retries with `X-PAYMENT` / `payment-signature` header.
+4. **200** with answer + `creatorEconomics`.
+
+**Demo bypass:** `X402_SKIP_PAYMENT=true` in `.env`, or header `x-demo-access: btl-hackathon` for the web UI.
+
+**MCP:** `query_brain_x402` in `apps/mcp-server` runs the 402 → pay → retry loop using `ZG_WALLET_PRIVATE_KEY`.
 
 ---
 
 ## Quick start
 
-**Requirements:** [Bun](https://bun.sh), a [BTL workspace key](https://runtime.badtheorylabs.com/), one terminal.
+**You need:** [Bun](https://bun.sh), a [BTL workspace key](https://runtime.badtheorylabs.com/), one terminal.
 
 ```bash
 git clone https://github.com/arko05roy/Icaruz.git
@@ -183,45 +267,46 @@ cd Icaruz
 bun install
 
 cp .env.example .env
-# Set GATEWAY_API_KEY=gw_...
-# Set ZG_WALLET_PRIVATE_KEY, BRAIN_ENS_NAME, BRAIN_STORAGE_ROOT, BRAIN_SPECIALTY
 ```
 
-**Web app** (UI + mixture API + in-process brain handler):
-
-```bash
-bun run dev --filter=@brainpedia/web
-```
-
-Open http://localhost:3000 → scroll to **mixture query** → run demo.
-
-Health check: http://localhost:3000/status
-
----
-
-## Environment
-
-Minimum for the BTL demo (root `.env`, loaded by the web app):
+**Minimum `.env` for local demo:**
 
 ```bash
 GATEWAY_API_KEY=gw_your_btl_workspace_key
 BTL_RUNTIME_BASE_URL=https://api.badtheorylabs.com/v1
 BTL_QUERY_MODEL=btl-2
 BTL_ROUTER_MODEL=btl-2
-ZG_WALLET_PRIVATE_KEY=0x...
+
+ZG_WALLET_PRIVATE_KEY=0x...          # brain handler + optional 0G upload
 BRAIN_ENS_NAME=yudhi.bpedia.eth
-BRAIN_STORAGE_ROOT=0x...          # optional; offline demo articles used if 0G fetch fails
+BRAIN_STORAGE_ROOT=0x...             # optional; demo articles if fetch fails
 BRAIN_SPECIALTY=EVM security, audit methodology, incident post-mortems
 BRAIN_ENFORCE_ACCESS_TOKENS=false
+
+X402_SKIP_PAYMENT=true               # humans try UI without paying
 ```
 
-Full template: [`.env.example`](.env.example)
+**Run the web app:**
+
+```bash
+bun run dev --filter=@brainpedia/web
+```
+
+| URL | What |
+|---|---|
+| http://localhost:3000 | Landing |
+| http://localhost:3000/ask | Mixture query + dual receipts |
+| http://localhost:3000/brains | Brain catalog |
+| http://localhost:3000/create | Publish a creator brain |
+| http://localhost:3000/status | Health check |
 
 ---
 
-## API
+## API reference
 
 ### `POST /api/mixture`
+
+Multi-brain fan-out + synthesis. Full answers; no x402 gate on this path (platform pays BTL).
 
 ```bash
 curl -X POST http://localhost:3000/api/mixture \
@@ -234,17 +319,26 @@ curl -X POST http://localhost:3000/api/mixture \
 | `prompt` | User question (required) |
 | `topic` | `auto` · `all` · `research` · `frameworks` |
 
-Response includes `brains[]` (per-brain answers + `btl` economics), `synthesis`, and `btlEconomics` aggregate.
+Response: `brains[]`, `synthesis`, `btlEconomics`, `creatorEconomics`.
 
 ### `POST /api/brain`
 
-Single-brain query for `/[name]` pages:
+Single-brain query. x402 required for priced creator brains (unless skip env/header).
 
 ```bash
 curl -X POST http://localhost:3000/api/brain \
   -H 'content-type: application/json' \
+  -H 'x-demo-access: btl-hackathon' \
   -d '{"prompt":"Explain LLM wikis","target":"karpathy"}'
 ```
+
+### `POST /api/create/register`
+
+Multipart: `owner`, `payoutWallet`, `name`, `specialty`, `priceUsd`, `topics`, `files[]`. Compiles knowledge, saves snapshot, registers brain.
+
+### `POST /api/create?step=preview`
+
+Preview compilation only (no register). Same multipart `files` + `owner`.
 
 ---
 
@@ -253,16 +347,17 @@ curl -X POST http://localhost:3000/api/brain \
 ```
 Icaruz/
 ├── apps/
-│   ├── web/                 Next.js UI + /api/mixture + /api/brain + /api/mcp
-│   ├── brain/               Standalone brain HTTP server (legacy; optional for AXL mesh)
-│   └── mcp-server/          Claude MCP tools (legacy write path)
+│   ├── web/                 Next.js UI, mixture/brain/create APIs, x402
+│   │   └── data/            brains.json + snapshots/ (creator catalog)
+│   ├── brain/               In-process query handler (used by web)
+│   └── mcp-server/          Claude MCP tools incl. query_brain_x402
 ├── packages/
-│   ├── compute-btl/         BTL Runtime client, economics, router  ← hackathon core
-│   ├── knowledge-compiler/  Vault → compiled wiki articles
-│   ├── storage-0g/          Snapshot fetch (optional; demo fallback built in)
-│   └── compute-0g/          Legacy inference path (unused when GATEWAY_API_KEY set)
-├── scripts/demo/            Sample vault markdown for local demos
-└── contracts/               Legacy on-chain Brain iNFT (not on hot path)
+│   ├── compute-btl/         BTL client, economics, router
+│   ├── knowledge-compiler/  Files → wiki articles
+│   ├── storage-0g/          Optional 0G snapshot upload/fetch
+│   └── ens/                 Legacy ENS path (not hot path for demo)
+├── scripts/demo/            Sample vault markdown
+└── contracts/               Legacy Brain iNFT (dormant in BTL demo mode)
 ```
 
 ---
@@ -272,18 +367,38 @@ Icaruz/
 | Layer | Choice |
 |---|---|
 | Monorepo | Bun workspaces + Turborepo |
-| Web | Next.js 15, Tailwind, Route Handlers (API backend) |
+| Web | Next.js 15, Tailwind, App Router |
 | Inference | [BTL Runtime](https://runtime.badtheorylabs.com/docs) (`btl-2`) |
-| Brain transport | In-process handler + JSON-RPC at `/api/mcp` |
+| Creator payouts | [x402](https://docs.x402.org/) (`@x402/next`, Base Sepolia default) |
+| Brain runtime | In-process `@brainpedia/brain` handler |
+| Catalog | JSON file store (`brain-store.ts`) |
 
 ---
 
-## Hackathon pitch (30 seconds)
+## Environment
 
-1. **Problem:** Mixture-of-experts agents rebill the same wiki context on every brain call.
-2. **Insight:** Split stable prefix (articles) from volatile tail (question). Structure prompts for BTL's cache.
-3. **Product:** Icaruz — mixture fan-out with a live economics receipt. Re-run the demo; savings are visible.
-4. **Proof:** `x-btl-*` headers on every call, aggregated in `btlEconomics`, rendered as a thermal receipt in the UI.
+Full template: [`.env.example`](.env.example)
+
+| Variable | Purpose |
+|---|---|
+| `GATEWAY_API_KEY` | BTL Runtime workspace key |
+| `BTL_QUERY_MODEL` / `BTL_ROUTER_MODEL` | Models for Q&A and topic routing |
+| `ZG_WALLET_PRIVATE_KEY` | Brain handler signer; MCP x402 payments |
+| `BRAIN_*` | Default in-process brain identity |
+| `BRAINS_DATA_DIR` | Override catalog path (default `apps/web/data`) |
+| `X402_FACILITATOR_URL` | x402 facilitator (default `https://x402.org/facilitator`) |
+| `X402_NETWORK` | e.g. `eip155:84532` (Base Sepolia) |
+| `X402_SKIP_PAYMENT` | `true` for human demo without wallet |
+| `ICARUZ_API_URL` | Base URL for MCP `query_brain_x402` |
+
+---
+
+## Pitch (30 seconds)
+
+1. **Problem:** Multi-expert agents rebill the same context N times, and experts who wrote that context don’t get paid.
+2. **Insight:** Split stable wiki prefix from the question for BTL cache; pay experts per query with x402.
+3. **Product:** Icaruz — mixture fan-out with two receipts: BTL savings + creator royalties.
+4. **Proof:** Re-run a prompt; `cacheHits` climb. Publish a brain; agents pay your wallet on query.
 
 ---
 
@@ -292,6 +407,7 @@ Icaruz/
 - **Repo:** https://github.com/arko05roy/Icaruz
 - **BTL Runtime:** https://runtime.badtheorylabs.com/
 - **BTL API docs:** https://runtime.badtheorylabs.com/docs
+- **x402:** https://www.x402.org/
 
 ---
 

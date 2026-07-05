@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { LOCAL_BRAINS } from '@/lib/brain-registry';
+import { findBrainById } from '@/lib/brain-registry';
 import { BrainQuery } from '@/components/brain-query';
 
 interface BrainPageProps {
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function BrainPage({ params }: BrainPageProps) {
   const { name } = await params;
-  const brain = LOCAL_BRAINS.find((b) => b.id === name || b.name === name);
+  const brain = await findBrainById(name);
   if (!brain) notFound();
 
   return (
@@ -21,7 +21,12 @@ export default async function BrainPage({ params }: BrainPageProps) {
       </Link>
 
       <header className="mt-6 flex flex-col gap-3">
-        <h1 className="font-display text-4xl text-[var(--ink)]">{brain.name}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-4xl text-[var(--ink)]">{brain.name}</h1>
+          {brain.isCreator && (
+            <span className="font-data text-[10px] uppercase text-[var(--ice)]">creator</span>
+          )}
+        </div>
         <p className="text-sm text-[var(--ink-dim)]">{brain.specialty}</p>
       </header>
 
@@ -29,7 +34,14 @@ export default async function BrainPage({ params }: BrainPageProps) {
         <Stat label="target id" value={brain.target} />
         <Stat label="topics" value={brain.topics.join(' · ')} />
         <Stat label="inference" value="BTL Runtime" />
-        <Stat label="prompt shape" value="prefix-stable RAG" />
+        <Stat
+          label="creator royalty"
+          value={
+            brain.priceUsd && brain.payoutWallet
+              ? `$${brain.priceUsd.toFixed(2)} → ${brain.payoutWallet.slice(0, 6)}…${brain.payoutWallet.slice(-4)}`
+              : 'free (demo)'
+          }
+        />
       </section>
 
       <section className="mt-10">

@@ -12,7 +12,9 @@ import {
   type EnsConfig,
 } from '@brainpedia/ens';
 import type { Address } from 'viem';
-import { resolveLocalTarget } from './local-targets.js';
+import { resolveLocalTarget, resolveLocalTargetAsync } from './local-targets.js';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 function tryLoadEns() {
   try {
@@ -124,7 +126,8 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
       let resolvedRoot = opts.storageRoot;
       let resolvedSpecialty = opts.specialty;
       if (req.target && req.target !== opts.ensName) {
-        const local = resolveLocalTarget(req.target);
+        const local =
+          resolveLocalTarget(req.target) ?? (await resolveLocalTargetAsync(req.target));
         if (local) {
           resolvedEns = local.name;
           resolvedRoot = local.storageRoot;
@@ -149,8 +152,13 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
       // 3. Retrieve articles (top-K from the latest snapshot).
       let articles: ArticleRecord[];
       try {
-        const manifest = await log.fetchSnapshot(resolvedRoot);
-        articles = topKByPromptOverlap(req.prompt, manifest.payload, opts.topK ?? 4);
+        if (resolvedRoot.startsWith('local:')) {
+          const brainId = resolvedRoot.slice('local:'.length);
+          articles = await loadLocalSnapshotArticles(brainId, opts.topK ?? 4, req.prompt);
+        } else {
+          const manifest = await log.fetchSnapshot(resolvedRoot);
+          articles = topKByPromptOverlap(req.prompt, manifest.payload, opts.topK ?? 4);
+        }
       } catch {
         const { loadDemoArticles } = await import('./demo-articles.js');
         articles = topKByPromptOverlap(req.prompt, loadDemoArticles(), opts.topK ?? 4);
@@ -193,6 +201,17 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
       };
     },
   };
+}
+
+async function loadLocalSnapshotArticles(
+  brainId: string,
+  k: number,
+  prompt: string,
+): Promise<ArticleRecord[]> {
+  const dataDir = process.env.BRAINS_DATA_DIR?.trim() || join(process.cwd(), 'data');
+  const raw = await readFile(join(dataDir, 'snapshots', `${brainId}.json`), 'utf8');
+  const manifest = JSON.parse(raw) as { payload: ArticleRecord[] };
+  return topKByPromptOverlap(prompt, manifest.payload, k);
 }
 
 /**

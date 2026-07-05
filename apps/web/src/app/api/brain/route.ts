@@ -1,19 +1,23 @@
 /**
  * Single-brain query via BTL — used on /[name] pages.
+ * Priced creator brains require x402 payment (unless X402_SKIP_PAYMENT or demo header).
+ *
  * POST { prompt, target }
  */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { findBrainById } from '@/lib/brain-registry';
 import {
   BTL_DEMO_ACCESS_TOKEN,
   BTL_DEMO_AGENT,
   isBrainRuntimeConfigured,
   queryBrainLocal,
 } from '@/lib/brain-runtime';
+import { gateBrainPayment, settleBrainPayment } from '@/lib/x402-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   if (!isBrainRuntimeConfigured()) {
     return NextResponse.json(
       {
@@ -37,6 +41,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'prompt and target required' }, { status: 400 });
   }
 
+  const brainMeta = await findBrainById(target);
+  const gate = brainMeta
+    ? await gateBrainPayment(req, brainMeta)
+    : ({ status: 'free' } as const);
+
+  if (gate.status === 'blocked') {
+    return gate.response;
+  }
+
   try {
     const result = await queryBrainLocal({
       prompt,
@@ -44,8 +57,27 @@ export async function POST(req: Request) {
       accessToken: BTL_DEMO_ACCESS_TOKEN,
       agent: BTL_DEMO_AGENT,
     });
-    return NextResponse.json(result);
+
+    const creatorEconomics =
+      brainMeta?.payoutWallet && brainMeta.priceUsd
+        ? {
+            wallet: brainMeta.payoutWallet,
+            amountUsd: brainMeta.priceUsd,
+            paid: gate.status === 'verified',
+          }
+        : undefined;
+
+    let response: NextResponse = NextResponse.json({ ...result, creatorEconomics });
+
+    if (gate.status === 'verified') {
+      response = await settleBrainPayment(gate, response);
+    }
+
+    return response;
   } catch (err) {
+    if (gate.status === 'verified') {
+      await gate.verified.cancellationDispatcher.cancel({ reason: 'handler_threw', error: err });
+    }
     return NextResponse.json({ error: (err as Error).message }, { status: 502 });
   }
 }
