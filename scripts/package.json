@@ -1,0 +1,30 @@
+{
+  "name": "@brainpedia/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prep-deploy": "bun run setup/prep-deploy.ts",
+    "register-parent": "bun run setup/register-parent.ts",
+    "seed-brain": "bun run setup/seed-brain.ts",
+    "mint-0g-expert": "bun run setup/mint-0g-expert-brain.ts",
+    "issue-token": "bun run setup/issue-access-token.ts",
+    "issue-discovery": "bun run setup/issue-discovery-shortcut.ts",
+    "verify-live": "bun run setup/verify-live.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@brainpedia/compute-0g": "workspace:*",
+    "@brainpedia/ens": "workspace:*",
+    "@brainpedia/knowledge-compiler": "workspace:*",
+    "@brainpedia/obsidian-parser": "workspace:*",
+    "@brainpedia/storage-0g": "workspace:*",
+    "@ensdomains/ensjs": "^4.2.2",
+    "ethers": "^6.13.4",
+    "viem": "^2.48.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

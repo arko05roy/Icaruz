@@ -1,0 +1,28 @@
+# AXL bootstrap node — long-running daemon other Brain nodes register
+# against to find each other through the Yggdrasil-encrypted mesh.
+#
+# Build:  docker build -f scripts/setup/Dockerfile.axl-bootstrap -t brainpedia/axl-bootstrap .
+# Deploy: railway up --service axl-bootstrap
+#
+# Expects an `axl-node-config.json` mounted at /etc/axl/node-config.json
+# (Railway: use a Volume + Variables to inject the private key at deploy time;
+#  do NOT bake the Ed25519 key into the image).
+
+FROM golang:1.25-alpine AS builder
+WORKDIR /src
+RUN apk add --no-cache git
+RUN git clone --depth 1 https://github.com/gensyn-ai/axl . \
+    && go build -o /out/axl ./cmd/node
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /out/axl /usr/local/bin/axl
+COPY scripts/setup/axl-entrypoint.sh /usr/local/bin/axl-entrypoint
+RUN chmod +x /usr/local/bin/axl-entrypoint
+
+# Listening port for the AXL HTTP API. Bind to 0.0.0.0 inside the container
+# but expose only the TLS mesh port externally on Railway.
+ENV AXL_API_LISTEN=0.0.0.0:9002
+EXPOSE 9002
+
+ENTRYPOINT ["/usr/local/bin/axl-entrypoint"]
