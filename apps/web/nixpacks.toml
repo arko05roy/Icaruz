@@ -1,0 +1,16 @@
+# Nixpacks build hints for the Brainpedia web app.
+# The build runs from the monorepo root so we can resolve workspace deps.
+providers = ["node"]
+
+[variables]
+NIXPACKS_BUN_VERSION = "1.1.42"
+NODE_VERSION = "20"
+
+[phases.install]
+cmds = ["cd ../.. && bun install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["cd ../.. && bun run build --filter=@brainpedia/web"]
+
+[start]
+cmd = "cd ../.. && bun run --cwd apps/web start"
