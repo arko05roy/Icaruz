@@ -1,0 +1,29 @@
+{
+  "name": "@brainpedia/knowledge-compiler",
+  "version": "0.1.0",
+  "description": "Brainpedia knowledge framework: extract + segment + compile arbitrary file formats into a Karpathy-style LLM wiki for an ERC-7857 Brain.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@brainpedia/compute-0g": "workspace:*",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pdf-parse": "^1.1.4",
+    "typescript": "^5.7.2"
+  }
+}
