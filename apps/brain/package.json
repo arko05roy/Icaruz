@@ -1,0 +1,29 @@
+{
+  "name": "@brainpedia/brain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Brain-side service — handles incoming /mcp/{peer}/brainpedia.brain calls, retrieves articles from 0G Storage, runs inference on 0G Compute, returns answers.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "brainpedia-brain": "dist/cli.js"
+  },
+  "scripts": {
+    "dev": "bun --env-file=../../.env run tsx watch src/cli.ts",
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@brainpedia/compute-btl": "workspace:*",
+    "@brainpedia/compute-0g": "workspace:*",
+    "@brainpedia/ens": "workspace:*",
+    "@brainpedia/storage-0g": "workspace:*",
+    "viem": "^2.21.55"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
