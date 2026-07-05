@@ -1,0 +1,46 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalEnv": [
+    "NODE_ENV",
+    "GATEWAY_API_KEY",
+    "BTL_RUNTIME_API_KEY",
+    "BTL_RUNTIME_BASE_URL",
+    "BTL_QUERY_MODEL",
+    "BTL_ROUTER_MODEL",
+    "BRAINPEDIA_BRAIN_URL",
+    "BRAIN_STORAGE_ROOT",
+    "BRAIN_ENFORCE_ACCESS_TOKENS",
+    "ZG_RPC_URL",
+    "ZG_CHAIN_ID",
+    "ZG_FLOW_CONTRACT_ADDRESS",
+    "ZG_STORAGE_INDEXER_URL",
+    "ZG_INFT_CONTRACT_ADDRESS",
+    "ZG_COMPUTE_PROVIDER_URL",
+    "ENS_PARENT_NAME",
+    "ENS_NETWORK",
+    "ENS_SUBNAME_REGISTRAR_ADDRESS",
+    "ENS_ACCESS_TOKEN_REGISTRAR_ADDRESS",
+    "AXL_API_URL",
+    "AXL_BOOTSTRAP_PEERS"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

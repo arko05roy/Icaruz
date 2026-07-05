@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.next
+.turbo
+out
+coverage
+contracts/cache
+contracts/out
+contracts/lib
+contracts/broadcast
+*.lock
+bun.lock
