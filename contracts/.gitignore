@@ -1,0 +1,11 @@
+cache/
+out/
+broadcast/
+/lib/
+!/lib/.gitkeep
+# Project-owned library code lives in src/lib/ and IS tracked.
+!src/lib/
+.env
+.env.deploy
+# Local audit-prep artifacts (reports written by audit-prep + solidity-auditor).
+.audit-prep/
