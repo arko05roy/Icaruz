@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "whitepaper-querry",
+    "name": "Whitepaper-querry",
+    "specialty": "This brain has detailed information about the Kaido Whitepaper",
+    "topics": [
+      "all",
+      "research"
+    ],
+    "storageRoot": "local:whitepaper-querry",
+    "payoutWallet": "0xb50ED70BBBfde48940Fd3E87797c1D5941fbE3c5",
+    "priceUsd": 0.01,
+    "ownerWallet": "0xb50ED70BBBfde48940Fd3E87797c1D5941fbE3c5",
+    "createdAt": "2026-07-05T14:07:36.181Z"
+  }
+]

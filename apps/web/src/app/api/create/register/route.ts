@@ -17,7 +17,25 @@ import { localStorageRoot, registerCreatorBrain } from '@/lib/brain-store';
 export const maxDuration = 120;
 export const runtime = 'nodejs';
 
-const TOPIC_OPTIONS = ['research', 'frameworks', 'all'] as const;
+const TOPIC_RE = /^[a-z0-9_-]{1,32}$/;
+
+function parseTopics(raw: string): string[] {
+  return [
+    ...new Set(
+      raw
+        .split(',')
+        .map((t) =>
+          t
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 32),
+        )
+        .filter((t) => TOPIC_RE.test(t)),
+    ),
+  ];
+}
 
 export async function POST(req: Request) {
   try {
@@ -38,10 +56,7 @@ export async function POST(req: Request) {
     const priceRaw = (form.get('priceUsd') ?? '0.01').toString();
     const priceUsd = Number(priceRaw);
     const topicsRaw = (form.get('topics') ?? 'all').toString();
-    const topics = topicsRaw
-      .split(',')
-      .map((t) => t.trim().toLowerCase())
-      .filter((t) => TOPIC_OPTIONS.includes(t as (typeof TOPIC_OPTIONS)[number]));
+    const topics = parseTopics(topicsRaw);
 
     const fileEntries = form.getAll('files').filter((f): f is File => f instanceof File);
     if (fileEntries.length === 0) {

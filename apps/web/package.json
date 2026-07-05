@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --env-file=../../.env run next dev --port 3000",
+    "dev": "bun run --filter @brainpedia/brain build && bun --env-file=../../.env run next dev --port 3000",
     "dev:clean": "rm -rf .next && bun run dev",
     "build": "bun --env-file=../../.env run next build",
     "start": "bun --env-file=../../.env run next start",

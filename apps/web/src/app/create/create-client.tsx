@@ -43,7 +43,16 @@ type FlowState =
 
 type SourceMode = 'upload' | 'obsidian';
 
-const TOPICS = ['research', 'frameworks', 'all'] as const;
+const PRESET_TOPICS = ['research', 'frameworks', 'all'] as const;
+
+function normalizeTopic(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+}
 
 export function CreateBrainClient() {
   const { address, isConnected } = useAccount();
@@ -61,6 +70,7 @@ export function CreateBrainClient() {
   const [payoutWallet, setPayoutWallet] = useState('');
   const [priceUsd, setPriceUsd] = useState('0.01');
   const [topics, setTopics] = useState<string[]>(['all']);
+  const [customTopic, setCustomTopic] = useState('');
   const [flowState, setFlowState] = useState<FlowState>('idle');
   const [previewResult, setPreviewResult] = useState<PreviewResponse | null>(null);
   const [registerResult, setRegisterResult] = useState<RegisterResponse | null>(null);
@@ -130,6 +140,13 @@ export function CreateBrainClient() {
     setTopics((prev) =>
       prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
     );
+  };
+
+  const addCustomTopic = () => {
+    const t = normalizeTopic(customTopic);
+    if (!t) return;
+    setTopics((prev) => (prev.includes(t) ? prev : [...prev, t]));
+    setCustomTopic('');
   };
 
   const onPreview = useCallback(async () => {
@@ -367,7 +384,7 @@ export function CreateBrainClient() {
       <div>
         <div className="label-rail mb-2">discovery topics</div>
         <div className="flex flex-wrap gap-2">
-          {TOPICS.map((t) => (
+          {PRESET_TOPICS.map((t) => (
             <button
               key={t}
               type="button"
@@ -379,6 +396,40 @@ export function CreateBrainClient() {
               {t}
             </button>
           ))}
+          {topics
+            .filter((t) => !PRESET_TOPICS.includes(t as (typeof PRESET_TOPICS)[number]))
+            .map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggleTopic(t)}
+                className="panel px-3 py-1 font-data text-xs text-[var(--signal)]"
+              >
+                {t} ×
+              </button>
+            ))}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input
+            value={customTopic}
+            onChange={(e) => setCustomTopic(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomTopic();
+              }
+            }}
+            placeholder="add custom topic"
+            className="panel flex-1 px-3 py-2 font-data text-xs outline-none"
+          />
+          <button
+            type="button"
+            className="panel px-3 py-2 font-data text-xs text-[var(--ink-dim)]"
+            disabled={!normalizeTopic(customTopic)}
+            onClick={addCustomTopic}
+          >
+            add
+          </button>
         </div>
       </div>
 
