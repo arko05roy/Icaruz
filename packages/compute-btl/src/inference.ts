@@ -1,7 +1,12 @@
 import OpenAI from 'openai';
 import type { BtlConfig } from './config.js';
 import { parseBtlHeaders, type BtlEconomics } from './economics.js';
-import { buildBrainSystemPrompt, composeRagUserBlock } from './prompts.js';
+import {
+  buildBrainSystemPrompt,
+  composeContextBlock,
+  composeRagUserBlock,
+  promptCacheKey,
+} from './prompts.js';
 
 export interface BtlInferenceRequest {
   systemPrompt: string;
@@ -24,11 +29,23 @@ export interface BtlInferenceClient {
 
 // ponytail: in-proc exact-repeat cache so re-runs of the same RAG payload show savings.
 // Ceiling: single Node process; upgrade path is BTL upstream prefix/exact cache only.
+// globalThis keeps entries across Next.js HMR module reloads in dev.
+declare global {
+  // eslint-disable-next-line no-var
+  var __btlRepeatCache:
+    | Map<string, { at: number; userContent: string; result: BtlInferenceResponse }>
+    | undefined;
+}
 const REPEAT_TTL_MS = 30 * 60 * 1000;
-const repeatCache = new Map<string, { at: number; result: BtlInferenceResponse }>();
+const repeatCache = globalThis.__btlRepeatCache ??= new Map();
 
-function repeatCacheKey(model: string, systemPrompt: string, userContent: string): string {
-  return `${model}\0${systemPrompt}\0${userContent}`;
+function repeatCacheKey(
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  context: Array<{ slug: string; title: string; body: string }>,
+): string {
+  return `${model}\0${systemPrompt}\0${composeContextBlock(context)}\0${promptCacheKey(userPrompt)}`;
 }
 
 export function createBtlInferenceClient(cfg: BtlConfig): BtlInferenceClient {
@@ -36,19 +53,24 @@ export function createBtlInferenceClient(cfg: BtlConfig): BtlInferenceClient {
 
   return {
     async query(req) {
-      const userContent = composeRagUserBlock(req.userPrompt, req.context ?? []);
+      const context = req.context ?? [];
+      const userContent = composeRagUserBlock(req.userPrompt, context);
       const model = req.model ?? cfg.queryModel;
-      const key = repeatCacheKey(model, req.systemPrompt, userContent);
+      const key = repeatCacheKey(model, req.systemPrompt, req.userPrompt, context);
       const cached = repeatCache.get(key);
       if (cached && Date.now() - cached.at < REPEAT_TTL_MS) {
         const prev = cached.result.btl;
         const charge = prev.customerCharge ?? 0;
         const bench = prev.benchmarkCost ?? charge;
+        const tier =
+          cached.userContent === userContent
+            ? 'exact_repeat'
+            : 'prefix';
         return {
           ...cached.result,
           btl: {
             requestId: prev.requestId,
-            cacheTier: prev.cacheHit ? (prev.cacheTier ?? 'exact_repeat') : 'exact_repeat',
+            cacheTier: tier,
             benchmarkCost: bench,
             customerCharge: 0,
             saved: charge,
@@ -83,7 +105,7 @@ export function createBtlInferenceClient(cfg: BtlConfig): BtlInferenceClient {
         },
         btl,
       };
-      repeatCache.set(key, { at: Date.now(), result });
+      repeatCache.set(key, { at: Date.now(), userContent, result });
       return result;
     },
   };

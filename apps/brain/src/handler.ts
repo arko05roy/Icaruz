@@ -7,7 +7,7 @@ import {
   rememberQueryTurn,
   searchBrainArticles,
 } from '@brainpedia/storage-retaindb';
-import { isBtlConfigured, loadBtlConfig, createBrainBtlClient, buildBrainSystemPrompt } from '@brainpedia/compute-btl';
+import { isBtlConfigured, loadBtlConfig, createBrainBtlClient, buildBrainSystemPrompt, contentTokens } from '@brainpedia/compute-btl';
 import {
   loadEnsConfig,
   createEnsPublicClient,
@@ -255,7 +255,7 @@ async function loadLocalSnapshotArticles(
  * each article. Replace with embeddings (stored as KV vectors) post-hackathon.
  */
 function topKByPromptOverlap(prompt: string, articles: ArticleRecord[], k: number): ArticleRecord[] {
-  const promptTokens = tokenise(prompt);
+  const promptTokens = new Set(contentTokens(prompt));
   return articles
     .map((a) => {
       const overlap = countOverlap(promptTokens, tokenise(`${a.title} ${a.body}`));

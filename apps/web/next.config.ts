@@ -11,6 +11,7 @@ const config: NextConfig = {
     '@brainpedia/ens',
     '@brainpedia/storage-0g',
     '@brainpedia/compute-btl',
+    '@brainpedia/storage-retaindb',
   ],
   typedRoutes: true,
   webpack: (webpackConfig) => {

@@ -15,4 +15,4 @@ export { pickTopicBtl } from './router.js';
 export type { RouterCandidate, RouterChoice } from './router.js';
 export { quoteBtlRequest } from './quote.js';
 export type { BtlQuoteResult } from './quote.js';
-export { composeRagUserBlock } from './prompts.js';
+export { composeRagUserBlock, contentTokens, promptCacheKey } from './prompts.js';

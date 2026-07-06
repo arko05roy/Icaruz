@@ -116,11 +116,14 @@ export async function storeBrainArticles(
   articles: ArticleMemoryInput[],
 ): Promise<void> {
   if (!isRetainDbConfigured() || articles.length === 0) return;
-  if (!(await isRetainDbReachable())) return;
+  if (!(await isRetainDbReachable())) {
+    console.warn('[retaindb] skip storeBrainArticles — not reachable');
+    return;
+  }
 
   const cfg = loadRetainDbConfig();
   const db = getContext(cfg);
-  await db.addMemoriesBulk({
+  const result = await db.addMemoriesBulk({
     project: cfg.project,
     memories: articles.map((article) => ({
       memory_type: 'semantic',
@@ -136,8 +139,11 @@ export async function storeBrainArticles(
         updatedAt: article.updatedAt,
       },
     })),
-    write_mode: 'async',
+    write_mode: 'sync',
   });
+  if (!result?.success && !result?.count && !result?.created) {
+    console.warn('[retaindb] storeBrainArticles unexpected response:', result);
+  }
 }
 
 export async function storeBrainCatalogRecord(record: Record<string, unknown>): Promise<void> {
@@ -152,7 +158,7 @@ export async function storeBrainCatalogRecord(record: Record<string, unknown>): 
     memory_type: 'project_state',
     content: JSON.stringify(record),
     metadata: { kind: 'brain_catalog', brainId },
-    write_mode: 'async',
+    write_mode: 'sync',
   });
 }
 
@@ -169,8 +175,9 @@ export async function searchBrainArticles(
   const result = await db.searchMemories({
     project: cfg.project,
     query,
-    top_k: Math.max(topK * 4, topK),
+    top_k: Math.max(topK * 8, 40),
     profile: 'balanced',
+    include_pending: true,
   });
 
   const seen = new Set<string>();
@@ -199,7 +206,7 @@ export async function storeMixtureSession(sessionId: string, payload: unknown): 
     session_id: sessionId,
     content: JSON.stringify(payload),
     metadata: { kind: 'mixture_session', sessionId },
-    write_mode: 'async',
+    write_mode: 'sync',
   });
 }
 
@@ -251,11 +258,11 @@ export async function rememberQueryTurn(input: {
       { role: 'user', content: input.prompt, timestamp: now },
       { role: 'assistant', content: input.answer, timestamp: now },
     ],
-    write_mode: 'async',
+    write_mode: 'sync',
   });
 }
 
-// ponytail: self-check — run with RetainDB up: `node dist/client.js`
+// ponytail: self-check
 if (import.meta.url === `file://${process.argv[1]}`) {
   const ok = await isRetainDbReachable();
   console.log('retaindb reachable:', ok);
