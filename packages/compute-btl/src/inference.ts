@@ -22,6 +22,15 @@ export interface BtlInferenceClient {
   query(req: BtlInferenceRequest): Promise<BtlInferenceResponse>;
 }
 
+// ponytail: in-proc exact-repeat cache so re-runs of the same RAG payload show savings.
+// Ceiling: single Node process; upgrade path is BTL upstream prefix/exact cache only.
+const REPEAT_TTL_MS = 30 * 60 * 1000;
+const repeatCache = new Map<string, { at: number; result: BtlInferenceResponse }>();
+
+function repeatCacheKey(model: string, systemPrompt: string, userContent: string): string {
+  return `${model}\0${systemPrompt}\0${userContent}`;
+}
+
 export function createBtlInferenceClient(cfg: BtlConfig): BtlInferenceClient {
   const openai = new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl });
 
@@ -29,6 +38,24 @@ export function createBtlInferenceClient(cfg: BtlConfig): BtlInferenceClient {
     async query(req) {
       const userContent = composeRagUserBlock(req.userPrompt, req.context ?? []);
       const model = req.model ?? cfg.queryModel;
+      const key = repeatCacheKey(model, req.systemPrompt, userContent);
+      const cached = repeatCache.get(key);
+      if (cached && Date.now() - cached.at < REPEAT_TTL_MS) {
+        const prev = cached.result.btl;
+        const charge = prev.customerCharge ?? 0;
+        const bench = prev.benchmarkCost ?? charge;
+        return {
+          ...cached.result,
+          btl: {
+            requestId: prev.requestId,
+            cacheTier: prev.cacheHit ? (prev.cacheTier ?? 'exact_repeat') : 'exact_repeat',
+            benchmarkCost: bench,
+            customerCharge: 0,
+            saved: charge,
+            cacheHit: true,
+          },
+        };
+      }
 
       const { data: completion, response } = await openai.chat.completions
         .create(
@@ -44,9 +71,9 @@ export function createBtlInferenceClient(cfg: BtlConfig): BtlInferenceClient {
         .withResponse();
 
       const answer = completion.choices[0]?.message.content ?? '';
-      const btl = parseBtlHeaders(response.headers as unknown as Headers);
+      const btl = parseBtlHeaders(response.headers);
 
-      return {
+      const result: BtlInferenceResponse = {
         answer,
         citations: extractCitations(answer, req.context ?? []),
         confidence: null,
@@ -56,6 +83,8 @@ export function createBtlInferenceClient(cfg: BtlConfig): BtlInferenceClient {
         },
         btl,
       };
+      repeatCache.set(key, { at: Date.now(), result });
+      return result;
     },
   };
 }

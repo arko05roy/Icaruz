@@ -12,5 +12,19 @@
     "priceUsd": 0.01,
     "ownerWallet": "0xb50ED70BBBfde48940Fd3E87797c1D5941fbE3c5",
     "createdAt": "2026-07-05T14:07:36.181Z"
+  },
+  {
+    "id": "tensors-and-pytorch",
+    "name": "Tensors and Pytorch",
+    "specialty": "This brain has detailed information about the Tensors and Pytorch",
+    "topics": [
+      "all",
+      "research"
+    ],
+    "storageRoot": "local:tensors-and-pytorch",
+    "payoutWallet": "0xb50ED70BBBfde48940Fd3E87797c1D5941fbE3c5",
+    "priceUsd": 0.01,
+    "ownerWallet": "0xb50ED70BBBfde48940Fd3E87797c1D5941fbE3c5",
+    "createdAt": "2026-07-06T06:14:00.607Z"
   }
 ]

@@ -20,17 +20,43 @@ export interface BtlEconomicsAggregate {
   byCacheTier: Record<string, number>;
 }
 
-export function parseBtlHeaders(headers: Headers): BtlEconomics {
-  const cacheTier = headers.get('x-btl-cache-tier');
-  const saved = parseMoney(headers.get('x-btl-saved'));
+export function parseBtlHeaders(headers: { get(name: string): string | null; forEach?(callback: (value: string, key: string) => void): void }): BtlEconomics {
+  const cacheTier = headerGet(headers, 'x-btl-cache-tier');
+  const benchmarkCost = parseMoney(headerGet(headers, 'x-btl-benchmark-cost'));
+  const customerCharge = parseMoney(headerGet(headers, 'x-btl-customer-charge'));
+  const saved = parseMoney(headerGet(headers, 'x-btl-saved'));
+  const requestId = headerGet(headers, 'x-btl-request-id');
+  const cacheHit = Boolean(
+    cacheTier && cacheTier !== 'miss' && cacheTier !== 'none' && cacheTier !== 'unknown',
+  );
   return {
-    requestId: headers.get('x-btl-request-id'),
+    requestId,
     cacheTier,
-    benchmarkCost: parseMoney(headers.get('x-btl-benchmark-cost')),
-    customerCharge: parseMoney(headers.get('x-btl-customer-charge')),
-    saved,
-    cacheHit: Boolean(cacheTier && cacheTier !== 'miss' && cacheTier !== 'none'),
+    benchmarkCost,
+    customerCharge,
+    // ponytail: some gateways omit x-btl-saved on miss — infer from benchmark − charge.
+    saved:
+      saved ??
+      (benchmarkCost != null && customerCharge != null
+        ? Math.max(0, benchmarkCost - customerCharge)
+        : null),
+    cacheHit,
   };
+}
+
+function headerGet(
+  headers: { get(name: string): string | null; forEach?(callback: (value: string, key: string) => void): void },
+  name: string,
+): string | null {
+  const direct = headers.get(name);
+  if (direct) return direct;
+  if (!headers.forEach) return null;
+  const lower = name.toLowerCase();
+  let found: string | null = null;
+  headers.forEach((value, key) => {
+    if (key.toLowerCase() === lower) found = value;
+  });
+  return found;
 }
 
 export function aggregateBtlEconomics(rows: BtlEconomics[]): BtlEconomicsAggregate {

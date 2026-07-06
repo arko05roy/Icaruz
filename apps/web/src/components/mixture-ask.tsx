@@ -247,11 +247,15 @@ export function MixtureAsk() {
             <p className="mt-3 text-sm leading-relaxed text-[var(--ink)]">{response.synthesis}</p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            {response.brains.map((b) => (
-              <BrainCard key={b.id} brain={b} />
-            ))}
-          </div>
+          {response.brains.some((b) => b.citations && b.citations.length > 0) && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {response.brains
+                .filter((b) => b.citations && b.citations.length > 0)
+                .map((b) => (
+                  <BrainCard key={b.id} brain={b} />
+                ))}
+            </div>
+          )}
         </div>
       )}
     </section>

@@ -161,13 +161,15 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
         }
       }
 
-      // 3. Retrieve articles (top-K from RetainDB search or snapshot fallback).
+      // 3. Retrieve articles — deterministic order so BTL prefix cache keys stay stable.
       let articles: ArticleRecord[];
       try {
         if (resolvedRoot.startsWith('local:')) {
           const brainId = resolvedRoot.slice('local:'.length);
-          const retainHits = await searchBrainArticles(brainId, req.prompt, opts.topK ?? 4);
-          if (retainHits.length > 0) {
+          // Snapshot first: semantic RetainDB search can reorder chunks between runs.
+          articles = await loadLocalSnapshotArticles(brainId, opts.topK ?? 4, req.prompt);
+          if (articles.length === 0) {
+            const retainHits = await searchBrainArticles(brainId, req.prompt, opts.topK ?? 4);
             articles = retainHits.map((a) => ({
               slug: a.slug,
               title: a.title,
@@ -176,8 +178,6 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
               sources: a.sources,
               updatedAt: a.updatedAt,
             }));
-          } else {
-            articles = await loadLocalSnapshotArticles(brainId, opts.topK ?? 4, req.prompt);
           }
         } else {
           const manifest = await log.fetchSnapshot(resolvedRoot);
@@ -187,6 +187,7 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
         const { loadDemoArticles } = await import('./demo-articles.js');
         articles = topKByPromptOverlap(req.prompt, loadDemoArticles(), opts.topK ?? 4);
       }
+      articles = [...articles].sort((a, b) => a.slug.localeCompare(b.slug));
 
       // 4. Inference — BTL Runtime when GATEWAY_API_KEY is set, else legacy 0G.
       const systemPrompt = buildBrainSystemPrompt(resolvedEns, resolvedSpecialty);

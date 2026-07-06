@@ -18,6 +18,7 @@ const config: NextConfig = {
     webpackConfig.resolve.alias = {
       ...webpackConfig.resolve.alias,
       '@brainpedia/brain': path.resolve(root, '../brain/src'),
+      '@brainpedia/compute-btl': path.resolve(root, '../../packages/compute-btl/src'),
     };
     // NodeNext .js imports in brain/src (e.g. ./handler.js) → actual .ts files.
     webpackConfig.resolve.extensionAlias = {
