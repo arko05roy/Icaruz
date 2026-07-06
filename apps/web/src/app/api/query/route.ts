@@ -401,7 +401,7 @@ async function claimMixture(
   txHash: string,
   settlementBlock?: number,
 ): Promise<NextResponse> {
-  const cached = getSession(sessionId);
+  const cached = await getSession(sessionId);
   if (!cached) {
     return NextResponse.json(
       { error: `mixture: sessionId not found or expired (TTL ${Math.round(SESSION_TTL_MS / 60_000)} min)` },

@@ -16,7 +16,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "retaindb:local": "npx -y @retaindb/local"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

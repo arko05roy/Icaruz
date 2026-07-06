@@ -11,6 +11,7 @@
     "issue-token": "bun run setup/issue-access-token.ts",
     "issue-discovery": "bun run setup/issue-discovery-shortcut.ts",
     "verify-live": "bun run setup/verify-live.ts",
+    "sync-retaindb": "bun run setup/sync-retaindb.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "@brainpedia/knowledge-compiler": "workspace:*",
     "@brainpedia/obsidian-parser": "workspace:*",
     "@brainpedia/storage-0g": "workspace:*",
+    "@brainpedia/storage-retaindb": "workspace:*",
     "@ensdomains/ensjs": "^4.2.2",
     "ethers": "^6.13.4",
     "viem": "^2.48.4"

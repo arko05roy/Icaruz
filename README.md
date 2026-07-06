@@ -67,6 +67,7 @@ Icaruz meets you where your notes already live.
 
 - **Local demo:** `apps/web/data/brains.json` + `data/snapshots/`
 - **Optional:** 0G Storage upload via `@brainpedia/storage-0g` (merkle-rooted snapshots)
+- **Memory layer:** [RetainDB](https://retaindb.com) via `@brainpedia/storage-retaindb` — semantic article storage, catalog sync, mixture sessions, and query recall (cloud or local; JSON files remain the fallback)
 - **On-chain path:** ERC-7857 Brain iNFT + ENS discovery — see `apps/mcp-server` for the full mint/sync flow
 
 ---
@@ -392,6 +393,7 @@ Icaruz/
 │   ├── knowledge-compiler/  Obsidian / PDF / DOCX → wiki articles
 │   ├── obsidian-parser/     Vault walk, wikilinks, REST API reader
 │   ├── storage-0g/          Optional 0G snapshot upload/fetch
+│   ├── storage-retaindb/    RetainDB memory sync + semantic retrieval
 │   └── ens/                 ENS discovery (on-chain path)
 ├── scripts/demo/            Sample vault markdown (karpathy-vault)
 └── contracts/               ERC-7857 Brain iNFT (on-chain path)
@@ -408,6 +410,7 @@ Icaruz/
 | Inference | [BTL Runtime](https://runtime.badtheorylabs.com/docs) (`btl-2`) |
 | Creator payouts | [x402](https://docs.x402.org/) (`@x402/next`, Base Sepolia) |
 | Knowledge | Obsidian vaults, PDF, DOCX → compiled article graphs |
+| Memory | [RetainDB](https://retaindb.com) (`@brainpedia/storage-retaindb`) — articles, sessions, query recall |
 | Agents | MCP server with pay-and-retry |
 
 ---
@@ -423,6 +426,9 @@ Full template: [`.env.example`](.env.example)
 | `ZG_WALLET_PRIVATE_KEY` | Brain handler signer; MCP x402 payments |
 | `BRAIN_*` | Default in-process brain identity |
 | `BRAINS_DATA_DIR` | Override catalog path |
+| `RETAINDB_BASE_URL` | RetainDB API (`https://api.retaindb.com` or `http://localhost:3111` for local) |
+| `RETAINDB_PROJECT` | RetainDB project name (e.g. `Icaruz`) |
+| `RETAINDB_API_KEY` | Cloud API key from [retaindb.com](https://www.retaindb.com) dashboard |
 | `X402_FACILITATOR_URL` | x402 facilitator |
 | `X402_NETWORK` | e.g. `eip155:84532` (Base Sepolia) |
 | `X402_SKIP_PAYMENT` | `true` for human demo without wallet |
@@ -437,6 +443,7 @@ Full template: [`.env.example`](.env.example)
 - **BTL Runtime:** https://runtime.badtheorylabs.com/
 - **BTL API docs:** https://runtime.badtheorylabs.com/docs
 - **x402:** https://www.x402.org/
+- **RetainDB:** https://retaindb.com
 - **MCP server:** [`apps/mcp-server/README.md`](apps/mcp-server/README.md)
 
 ---

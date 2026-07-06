@@ -3,6 +3,10 @@ import {
   createBrainLogClient,
   type ArticleRecord,
 } from '@brainpedia/storage-0g';
+import {
+  rememberQueryTurn,
+  searchBrainArticles,
+} from '@brainpedia/storage-retaindb';
 import { isBtlConfigured, loadBtlConfig, createBrainBtlClient, buildBrainSystemPrompt } from '@brainpedia/compute-btl';
 import {
   loadEnsConfig,
@@ -157,12 +161,24 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
         }
       }
 
-      // 3. Retrieve articles (top-K from the latest snapshot).
+      // 3. Retrieve articles (top-K from RetainDB search or snapshot fallback).
       let articles: ArticleRecord[];
       try {
         if (resolvedRoot.startsWith('local:')) {
           const brainId = resolvedRoot.slice('local:'.length);
-          articles = await loadLocalSnapshotArticles(brainId, opts.topK ?? 4, req.prompt);
+          const retainHits = await searchBrainArticles(brainId, req.prompt, opts.topK ?? 4);
+          if (retainHits.length > 0) {
+            articles = retainHits.map((a) => ({
+              slug: a.slug,
+              title: a.title,
+              body: a.body,
+              links: a.links,
+              sources: a.sources,
+              updatedAt: a.updatedAt,
+            }));
+          } else {
+            articles = await loadLocalSnapshotArticles(brainId, opts.topK ?? 4, req.prompt);
+          }
         } else {
           const manifest = await log.fetchSnapshot(resolvedRoot);
           articles = topKByPromptOverlap(req.prompt, manifest.payload, opts.topK ?? 4);
@@ -182,6 +198,11 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
           userPrompt: req.prompt,
           context,
         });
+        void rememberQueryTurn({
+          brainId: resolvedEns,
+          prompt: req.prompt,
+          answer: result.answer,
+        }).catch(() => {});
         return {
           answer: result.answer,
           citations: result.citations,
@@ -198,6 +219,12 @@ export function createBrainHandler(opts: BrainOptions, signerPrivateKey: string)
         userPrompt: req.prompt,
         context,
       });
+
+      void rememberQueryTurn({
+        brainId: resolvedEns,
+        prompt: req.prompt,
+        answer: result.answer,
+      }).catch(() => {});
 
       return {
         answer: result.answer,

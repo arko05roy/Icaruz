@@ -1,6 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isAddress, type Address } from 'viem';
+import {
+  storeBrainArticles,
+  storeBrainCatalogRecord,
+} from '@brainpedia/storage-retaindb';
 
 export interface CreatorBrainRecord {
   id: string;
@@ -71,6 +75,9 @@ export async function saveLocalSnapshot(
 ): Promise<void> {
   await ensureDataDir();
   await writeFile(snapshotPath(brainId), JSON.stringify(manifest, null, 2), 'utf8');
+  void storeBrainArticles(brainId, manifest.payload).catch((err) => {
+    console.warn('[brain-store] RetainDB article sync failed:', err);
+  });
 }
 
 export async function loadLocalSnapshot(brainId: string): Promise<SnapshotManifestLocal | null> {
@@ -161,5 +168,8 @@ export async function registerCreatorBrain(input: RegisterBrainInput): Promise<C
 
   brains.push(record);
   await writeFile(brainsPath(), JSON.stringify(brains, null, 2), 'utf8');
+  void storeBrainCatalogRecord(record as unknown as Record<string, unknown>).catch((err) => {
+    console.warn('[brain-store] RetainDB catalog sync failed:', err);
+  });
   return record;
 }

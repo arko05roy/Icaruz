@@ -1,0 +1,27 @@
+{
+  "name": "@brainpedia/storage-retaindb",
+  "version": "0.1.0",
+  "description": "RetainDB memory store — brain articles, catalog metadata, and mixture sessions.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@retaindb/sdk": "^5.1.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

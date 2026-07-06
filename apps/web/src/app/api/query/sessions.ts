@@ -12,6 +12,7 @@
  * single Railway replica; would need Redis to scale out.
  */
 import { randomBytes } from 'node:crypto';
+import { loadMixtureSession, storeMixtureSession } from '@brainpedia/storage-retaindb';
 
 export interface CachedMixture {
   createdAt: number;
@@ -53,17 +54,27 @@ export function newSessionId(): string {
 export function putSession(sessionId: string, value: CachedMixture): void {
   gc();
   sessions.set(sessionId, value);
+  void storeMixtureSession(sessionId, value).catch((err) => {
+    console.warn('[sessions] RetainDB persist failed:', err);
+  });
 }
 
-export function getSession(sessionId: string): CachedMixture | null {
+export async function getSession(sessionId: string): Promise<CachedMixture | null> {
   gc();
   const v = sessions.get(sessionId);
-  if (!v) return null;
-  if (Date.now() - v.createdAt > TTL_MS) {
-    sessions.delete(sessionId);
-    return null;
+  if (v) {
+    if (Date.now() - v.createdAt > TTL_MS) {
+      sessions.delete(sessionId);
+      return null;
+    }
+    return v;
   }
-  return v;
+
+  const restored = await loadMixtureSession<CachedMixture>(sessionId);
+  if (!restored) return null;
+  if (Date.now() - restored.createdAt > TTL_MS) return null;
+  sessions.set(sessionId, restored);
+  return restored;
 }
 
 /** Record a verified settlement so future claims are idempotent + free. */
