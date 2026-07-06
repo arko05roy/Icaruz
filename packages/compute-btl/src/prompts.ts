@@ -1,4 +1,4 @@
-/** Question fluff stripped so "what are tensors" and "explain tensors" share a cache key. */
+/** Question fluff stripped. */
 const QUESTION_STOP = new Set([
   'what',
   'how',
